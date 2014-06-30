@@ -31,7 +31,18 @@ DH_P = 1797693134862315907708391567937874531978602960487560117064444236841971802
 def padding(payload):
     payload += "\x00" * (509 - len(payload))
     return payload
-    
+
+# builds a cell
+def buildCell(circid, command, payload):
+        cell = struct.pack(">HB", circid, command)
+        if command == 7 or command >= 128:
+                cell += struct.pack(">H", len(payload))
+        else:
+                payload = padding(payload)
+               # payload = ''.join(payload)
+        cell += payload
+        return cell
+            
 #Tor KDF function
 def kdf_tor(K0, length):
     K = ''
