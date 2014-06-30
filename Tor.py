@@ -59,17 +59,6 @@ from torfuncs import *
 #         15 -- RELAY_EXTENDED2 [backward]            [control]
 
 
-
-KEY_LEN=16
-DH_LEN=128
-DH_SEC_LEN=40
-PK_ENC_LEN=128
-PK_PAD_LEN=42
-HASH_LEN=20
-DH_G = 2
-DH_P = 179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007L
-
-
 s = socket.socket()
 ssl_sock = ssl.wrap_socket(s)
 ssl_sock.connect(("94.242.246.24", 8080))
@@ -96,32 +85,12 @@ def recvCell(sock, waitFor = 0):
                 if cmd == waitFor or waitFor == 0:
                         return { 'circId': circid, 'cmd': cmd, 'len': ln, 'pl': pl}
 
-
-
-# builds a cell
-def buildCell(circid, command, payload):
-        cell = struct.pack(">HB", circid, command)
-        if command == 7 or command >= 128:
-                cell += struct.pack(">H", len(payload))
-        else:
-                payload = padding(payload)
-               # payload = ''.join(payload)
-        cell += payload
-        return cell
-
-
 # builds the version cell's payload
 def buildVersions(acceptVersions):
         pkt = ''
         for v in acceptVersions:
                 pkt += struct.pack(">H", v)
         return pkt
-
-verPl = buildVersions([ 3 ])
-verCell = buildCell(0, 7, verPl)
-
-print "Packet to send is : ", verCell
-ssl_sock.send(verCell)
 
 def decodeNetInfo(pl):
     payload = pl
@@ -185,38 +154,26 @@ def NetInfoToSend(tm, our_or_ip_version, our_or_addr_len, our_op_ip, version_the
 
     return  CellNetInfopkt
 
-
-srv_netinfocell = recvCell(ssl_sock, 8)
-print "netinfoCell recieved ",srv_netinfocell 
-srv_decodeNetInfo = decodeNetInfo(srv_netinfocell['pl']) # proccess the payload from the netinfo cell
-srv_NetInfoToSend = NetInfoToSend(**srv_decodeNetInfo)
-netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
-print "netinfo to send ", netinfoCell.encode('hex')
-
-ssl_sock.send(netinfoCell)
-
 # retrieve the consensus
 consensus.fetchConsensus()
 #print "Retrieved the consensus successfully"
 
 #retrieves the consensus data for the first node to connect ti
-# r = consensus.getRouter("orion")
-# #print "r (orion router): ", r
 
-# x = numunpack(os.urandom(DH_SEC_LEN))
 
-# #calculates Big X (our public key)
-# X = pow(DH_G,x,DH_P)
-# X = numpack(X,DH_LEN)
-# print X
+verPl = buildVersions([ 3 ])
+verCell = buildCell(0, 7, verPl)
+print "Packet to send is : ", verCell
+ssl_sock.send(verCell)
 
-# router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
-# router_onion_key = consensus.getRouterOnionKey(router_descriptor)
-# print router_onion_key
+srv_netinfocell = recvCell(ssl_sock, 8)
+print "netinfoCell recieved ",srv_netinfocell 
+srv_decodeNetInfo = decodeNetInfo(srv_netinfocell['pl']) # proccess the payload from the netinfo cell
 
-# remoteKey = RSA.importKey(router_onion_key)
-#creates the payload to the first hop
-
+srv_NetInfoToSend = NetInfoToSend(**srv_decodeNetInfo)
+netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
+print "netinfo to send ", netinfoCell.encode('hex')
+ssl_sock.send(netinfoCell)
 
 firstHop = "orion"
 payload, x = remoteKeyX(firstHop)
@@ -230,12 +187,22 @@ print "Recieved a created cell back : ", srv_createdCell
 #print "Df", Df.encode('hex')
 #srv_createdCell = srv_createdCell['pl']
 KH, Df, Db, Kf, Kb = decodeCreatedCell(srv_createdCell['pl'], x)
-print "KH", KH.encode('hex'), "Df", Df.encode('hex'), "Db", Db.encode('hex'), "Kf", Kf.encode('hex'), "Kb", Kb.encode('hex')
+#print "KH", KH.encode('hex'), "Df", Df.encode('hex'), "Db", Db.encode('hex'), "Kf", Kf.encode('hex'), "Kb", Kb.encode('hex')
 
 t1 = KH, Df, Db, Kf, Kb
 
-
+global hops
 hops = []
+
+
+# def handleCreated(cell):
+#     created = cell['pl']
+#     t1 = decodeCreatedCell(created, x)
+#     hops.append(t1)
+
+# created = handleCreated(srv_createdCell)
+hops.append(t1)
+
 packetSendCount = 0
 
 fwdSha = SHA.new()
@@ -254,7 +221,18 @@ def encrypt(data):
 def decrypt(data):
     return bwdCipher.decrypt(data)
 
-hops.append(t1)
+
+# #parse relaycell as str
+#     def encrypt(relayCell):
+#         for hop in hops[::-1]:
+#             relayCell = hop.fwdCipher.encrypt(relayCell)
+#         return relayCell
+
+# def decrypt( relayCell):
+#     for hop in hops:
+#         relayCell = hop.decrypt(relayCell)
+#     return relayCell
+
 
 def buildExtendPayload(on):
 
@@ -336,28 +314,14 @@ def send(packet):
 # packetSendCount += 1
 #hopsToVisit = ["TheVillage"]
 
+
 def extendedRecieved(packet):
     extended = decrypt(packet)
     relayDecoded = decodeRelayCell(extended)
     assert relayDecoded['relayCmd'] == 7 # checks to make sure the cell recieved is a RELAY_EXTENDED
-    relayDecoded = relayDecoded['pl']
-
-    # Y = numunpack(relayDecoded[0:128])
-    #print Y
-    # DerivativeKeyData = relayDecoded[128: 128+20]
-    ##DerivativeKeyData = 64a4f00a0687872000a5d54a256508931d955d13
-
-    # shared_Key = pow(Y,x,DH_P)
-
-
-    # KK = StringIO(kdf_tor(numpack(shared_Key, DH_LEN), 3*HASH_LEN + 2*KEY_LEN))
-    # (KH, Df, Db) = [KK.read(HASH_LEN) for i in range(3)]
-    # (Kf, Kb) = [KK.read(KEY_LEN) for i in range(2)]
-    ## kh = 23631b77a5da974f753b8b7e8d658288b8291a58
-    #return KH
-
-    t2 = decodeCreatedCell(relayDecoded, x) #currently getting an assertion error
-    return t2
+    payload = relayDecoded['pl']
+    t2 = decodeCreatedCell(payload, x) #currently getting an assertion error
+    return t2#self.hops.append(t2)    
 
 send = extend("TheVillage")
 packetSendCount += 1
@@ -378,8 +342,19 @@ for k, v in srv_RelayedCell.iteritems():
 print "payload", srv_RelayedCell['pl'].encode('hex')
 RelayedCellPayload = srv_RelayedCell['pl'] #only require the payload
 #print "x", x
+# print RelayedCellPayload
+
+# for hop in hops:
+#     relayCell = decrypt(RelayedCellPayload)
+#     return relayCell    
+
+# print relayCell
+print "RelayedCellPayload", RelayedCellPayload.encode('hex')
+print type(RelayedCellPayload)
+
+
 extended = extendedRecieved(RelayedCellPayload)
-print "extended decrypted ", extended.encode('hex')
+print "extended decrypted ", extended#.encode('hex')
 #print type(extended)
-hops.append(t2)
+#hops.append(t2)
 
