@@ -18,7 +18,7 @@ import itertools
 import consensus
 
 
-from torfuncs import *
+from torfuncsTest import *
 
 #         0 -- PADDING     (Padding)
 #         1 -- CREATE      (Create a circuit)
