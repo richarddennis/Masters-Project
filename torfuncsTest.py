@@ -31,7 +31,18 @@ DH_P = 1797693134862315907708391567937874531978602960487560117064444236841971802
 def padding(payload):
     payload += "\x00" * (509 - len(payload))
     return payload
-    
+
+# builds a cell
+def buildCell(circid, command, payload):
+        cell = struct.pack(">HB", circid, command)
+        if command == 7 or command >= 128:
+                cell += struct.pack(">H", len(payload))
+        else:
+                payload = padding(payload)
+               # payload = ''.join(payload)
+        cell += payload
+        return cell    
+
 
 class TorHop:
     def __init__(self, KH, Df, Db, Kf, Kb):
@@ -55,16 +66,6 @@ class TorHop:
     def decrypt(self, data):
         return self.bwdCipher.decrypt(data)
 
-# builds a cell
-def buildCell(circid, command, payload):
-        cell = struct.pack(">HB", circid, command)
-        if command == 7 or command >= 128:
-                cell += struct.pack(">H", len(payload))
-        else:
-                payload = padding(payload)
-               # payload = ''.join(payload)
-        cell += payload
-        return cell
 
 #Tor KDF function
 def kdf_tor(K0, length):
@@ -212,31 +213,3 @@ def decodeRelayCell(cell):
     celldata['pl'] = cell[11:celldata['length']+11]
     return celldata
 
-
-#     #def buildRelayCell(relayCmd, streamId, payload):
-# def buildRelayCell(relayCmd, streamId, payload):
-# #         # Relay command           [1 byte]
-# #         # 'Recognized'            [2 bytes]
-# #         # StreamID                [2 bytes]
-# #         # Digest                  [4 bytes]
-# #         # Length                  [2 bytes]
-# #         # Data                    [PAYLOAD_LEN-11 bytes]
-
-#     # packet = struct.pack(">B", relayCmd)
-#     # packet += struct.pack("H", 0)
-#     # packet += struct.pack("H", streamId)
-#     # packet += struct.pack("L", 0)
-#     # packet += struct.pack("H", len(payload))
-#     # packet += struct.pack(payload)
-
-#     packet = struct.pack(">BHHLH", relayCmd, 0, streamId, 0, len(payload)) + payload
-
-#     # padding
-#     #packet += "\x00" * (509 - len(packet))
-#     packet = padding(packet)
-#     assert len(packet) == 509
-
-#     fwdSha.update(packet)
-#     packet = packet[0:5] + fwdSha.digest()[0:4] + packet[9:]
-
-#     return packet
