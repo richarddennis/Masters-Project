@@ -65,17 +65,6 @@ from torfuncsTest import *
 # 512 - COMMAND_LEN - PAYLOAD_LEN = 512 - 1 - 509 = 2
 CIRCID_LEN = 2
 
-# builds a cell
-def buildCell(circid, command, payload):
-        cell = struct.pack(">HB", circid, command)
-        if command == 7 or command >= 128:
-                cell += struct.pack(">H", len(payload))
-        else:
-                payload = padding(payload)
-               # payload = ''.join(payload)
-        cell += payload
-        return cell
-
 # sock is TCP socket/SSL socket
 # specify waitFor as cmd ID if should wait for that packet (ignores all others)
 def recvCell(sock, waitFor = 0):
@@ -159,48 +148,7 @@ def NetInfoToSend(tm, our_or_ip_version, our_or_addr_len, our_op_ip, version_the
 
     return  CellNetInfopkt
 
-# retrieve the consensus
 
-#print "KH", KH.encode('hex'), "Df", Df.encode('hex'), "Db", Db.encode('hex'), "Kf", Kf.encode('hex'), "Kb", Kb.encode('hex')
-
-#t1 = KH, Df, Db, Kf, Kb
-
-# class TorCircuit():
-#     def __init__(self, sock, circid):
-#         self.hops = []
-#         self.circId = circid
-#         self.socket = sock
-#         self.tempX = 0
-#         self.packetSendCount = 0
-
-# def handleCreated(cell):
-#     created = cell['pl']
-#     t1 = decodeCreatedCell(created, x)
-#     hops.append(t1)
-
-# created = handleCreated(srv_createdCell)
-
-#packetSendCount = 0
-
-#hops.append(t1)
-
-
-# (x, extend) = buildExtendPayload("TheVillage")
-# print "extend ",extend.encode('hex')
-
-
-# #constructs relay cell payload and encrypts to torhop
-# def buildRelayCell( relCmd, streamId, data):
-#     print relCmd
-# #construct pkt
-#     pkt = struct.pack(">BHHLH", relCmd, 0, streamId, 0, len(data)) + data
-#     pkt += "\x00" * (509 - len(pkt))
-# #update rolling sha1 hash (with digest set to all zeroes)
-#     fwdSha.update(pkt)
-# #splice in hash
-#     pkt = pkt[0:5] + fwdSha.digest()[0:4] + pkt[9:]
-# #encrypt
-#     return pkt
 
 class TorCircuit():
     def __init__(self, sock, circid):
@@ -258,6 +206,9 @@ class TorCircuit():
         relay = buildRelayCell(self.hops[-1], 1, strId, payload)
         self.send(relay)    
 
+# first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
+# print first_hop
+
 s = socket.socket()
 ssl_sock = ssl.wrap_socket(s)
 ssl_sock.connect(("94.242.246.24", 8080))
@@ -266,6 +217,7 @@ peerAddress = map(int,ssl_sock.getpeername()[0].split("."))
 ownAddress = map(int,ssl_sock.getsockname()[0].split("."))
 
 consensus.fetchConsensus()
+print "consensus Retrieved"
 
 verPl = buildVersions([ 3 ])
 verCell = buildCell(0, 7, verPl)
@@ -291,20 +243,63 @@ circ.handleCreated(created)
 #hop = "WorldWithPrivacyNY1"
 count=0
 for hop in ["TheVillage", "WorldWithPrivacyNY1",]:
-    print "hop", hop
+    print "hop :", hop
     circ.extend(hop)
     extended = recvCell(ssl_sock)
     print "extended recieved", extended
     circ.extendedRecieved(extended['pl'])
     count = count + 1
-    print "success hop ",count
+    print "success, hop ",count
 
-# circ.createStream(1, "nas.ghowen.me", 22)
-# print decodeRelayCell(circ.decrypt(recvCell(ssl_sock).payload))
+circ.createStream(1, "nas.ghowen.me", 22)
+print decodeRelayCell(circ.decrypt(recvCell(ssl_sock)['pl']))
 
-# while True:
-#     print recv_cell(ssl_sock)
+while True:
+    print recvCell(ssl_sock)
 
+
+# retrieve the consensus
+
+#print "KH", KH.encode('hex'), "Df", Df.encode('hex'), "Db", Db.encode('hex'), "Kf", Kf.encode('hex'), "Kb", Kb.encode('hex')
+
+#t1 = KH, Df, Db, Kf, Kb
+
+# class TorCircuit():
+#     def __init__(self, sock, circid):
+#         self.hops = []
+#         self.circId = circid
+#         self.socket = sock
+#         self.tempX = 0
+#         self.packetSendCount = 0
+
+# def handleCreated(cell):
+#     created = cell['pl']
+#     t1 = decodeCreatedCell(created, x)
+#     hops.append(t1)
+
+# created = handleCreated(srv_createdCell)
+
+#packetSendCount = 0
+
+#hops.append(t1)
+
+
+# (x, extend) = buildExtendPayload("TheVillage")
+# print "extend ",extend.encode('hex')
+
+
+# #constructs relay cell payload and encrypts to torhop
+# def buildRelayCell( relCmd, streamId, data):
+#     print relCmd
+# #construct pkt
+#     pkt = struct.pack(">BHHLH", relCmd, 0, streamId, 0, len(data)) + data
+#     pkt += "\x00" * (509 - len(pkt))
+# #update rolling sha1 hash (with digest set to all zeroes)
+#     fwdSha.update(pkt)
+# #splice in hash
+#     pkt = pkt[0:5] + fwdSha.digest()[0:4] + pkt[9:]
+# #encrypt
+#     return pkt
 
 # print "extend encrypted ", extend.encode('hex')
 # extendr = buildRelayCell(hops[-1], 6, 0, extend)
