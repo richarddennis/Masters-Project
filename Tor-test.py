@@ -59,17 +59,22 @@ from torfuncsTest import *
 #         15 -- RELAY_EXTENDED2 [backward]            [control]
 
 
-s = socket.socket()
-ssl_sock = ssl.wrap_socket(s)
-ssl_sock.connect(("94.242.246.24", 8080))
-
-peerAddress = map(int,ssl_sock.getpeername()[0].split("."))
-ownAddress = map(int,ssl_sock.getsockname()[0].split("."))
 #print ownAddress
 #sys.exit(0)
 
 # 512 - COMMAND_LEN - PAYLOAD_LEN = 512 - 1 - 509 = 2
 CIRCID_LEN = 2
+
+# builds a cell
+def buildCell(circid, command, payload):
+        cell = struct.pack(">HB", circid, command)
+        if command == 7 or command >= 128:
+                cell += struct.pack(">H", len(payload))
+        else:
+                payload = padding(payload)
+               # payload = ''.join(payload)
+        cell += payload
+        return cell
 
 # sock is TCP socket/SSL socket
 # specify waitFor as cmd ID if should wait for that packet (ignores all others)
@@ -234,30 +239,31 @@ class TorCircuit():
 
     def send(self, packet):
         packetencrpyt = self.encrypt(packet)
-        self.socket.send(buildCell(self.circId, 9, packetencrpyt)) # will need to monitor this, if packets sent >8 need to change relay type
+        relayId = (9 if self.packetSendCount <8 else 3)
+        self.socket.send(buildCell(self.circId, relayId, packetencrpyt)) # will need to monitor this, if packets sent >8 need to change relay type
         self.packetSendCount += 1
 
     def extendedRecieved(self, packet):
-        extended = self.decrypt(packet['pl'])
+        extended = self.decrypt(packet)
         relayDecoded = decodeRelayCell(extended)
-        assert relayDecoded['relayCmd'] == 7 # checks to make sure the cell recieved is a RELAY_EXTENDED
+        assert relayDecoded['relayCmd'] == 7 # checks to make sure the cell recieved is a RELAY_EXTENDED  #sometimes get an assertion error
         payload = relayDecoded['pl']
-        t2 = decodeCreatedCell(payload, self.tempX) #currently getting an assertion error
+        t2 = decodeCreatedCell(payload, self.tempX)
         self.hops.append(t2)
+        # return extended
         #return t2
 
+    def createStream(self,strId, host, port):
+        payload = host + ":" + str(port) + "\x00" + struct.pack(">L", 0)
+        relay = buildRelayCell(self.hops[-1], 1, strId, payload)
+        self.send(relay)    
 
-# print "extend encrypted ", extend.encode('hex')
-# extendr = buildRelayCell(hops[-1], 6, 0, extend)
-# print "extendr: ", extendr.encode('hex')
-# print "len extendr: ", len(extendr)
-# #extendr = encrypt(extendr)
+s = socket.socket()
+ssl_sock = ssl.wrap_socket(s)
+ssl_sock.connect(("94.242.246.24", 8080))
 
-# ssl_sock.send(buildCell(1, 9, extendr))   # 9 = RELAY_EARLY
-# packetSendCount += 1
-#hopsToVisit = ["TheVillage"]
-
-
+peerAddress = map(int,ssl_sock.getpeername()[0].split("."))
+ownAddress = map(int,ssl_sock.getsockname()[0].split("."))
 
 consensus.fetchConsensus()
 
@@ -282,12 +288,35 @@ circ.toFirst(firstHop)
 created = recvCell(ssl_sock)
 circ.handleCreated(created)
 
-hop = "TheVillage"
+#hop = "WorldWithPrivacyNY1"
+count=0
+for hop in ["TheVillage", "WorldWithPrivacyNY1",]:
+    print "hop", hop
+    circ.extend(hop)
+    extended = recvCell(ssl_sock)
+    print "extended recieved", extended
+    circ.extendedRecieved(extended['pl'])
+    count = count + 1
+    print "success hop ",count
 
-circ.extend(hop)
-extended = recvCell(ssl_sock)
-print "extended recieved : ", extended
-circ.extendedRecieved(extended)
+# circ.createStream(1, "nas.ghowen.me", 22)
+# print decodeRelayCell(circ.decrypt(recvCell(ssl_sock).payload))
+
+# while True:
+#     print recv_cell(ssl_sock)
+
+
+# print "extend encrypted ", extend.encode('hex')
+# extendr = buildRelayCell(hops[-1], 6, 0, extend)
+# print "extendr: ", extendr.encode('hex')
+# print "len extendr: ", len(extendr)
+# #extendr = encrypt(extendr)
+
+# ssl_sock.send(buildCell(1, 9, extendr))   # 9 = RELAY_EARLY
+# packetSendCount += 1
+#hopsToVisit = ["TheVillage"]
+
+
 #print "Retrieved the consensus successfully"
 
 #retrieves the consensus data for the first node to connect ti
