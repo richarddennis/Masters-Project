@@ -204,7 +204,13 @@ class TorCircuit():
     def createStream(self,strId, host, port):
         payload = host + ":" + str(port) + "\x00" + struct.pack(">L", 0)
         relay = buildRelayCell(self.hops[-1], 1, strId, payload)
-        self.send(relay)    
+        self.send(relay)
+
+    def streamRecieved(self, packet):
+        connected = self.decrypt(packet)
+        relayDecoded = decodeRelayCell(connected)        
+        assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
+
 
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
@@ -242,7 +248,7 @@ circ.handleCreated(created)
 
 #hop = "WorldWithPrivacyNY1"
 count=0
-for hop in ["TheVillage", "WorldWithPrivacyNY1",]:
+for hop in ["TheVillage", "WorldWithPrivacyNY1", "TorLand1", "InternetMastering2"]:
     print "hop :", hop
     circ.extend(hop)
     extended = recvCell(ssl_sock)
@@ -251,9 +257,10 @@ for hop in ["TheVillage", "WorldWithPrivacyNY1",]:
     count = count + 1
     print "success, hop ",count
 
-circ.createStream(1, "nas.ghowen.me", 22)
-print decodeRelayCell(circ.decrypt(recvCell(ssl_sock)['pl']))
-
+circ.createStream(1, "ghowen.me", 80)
+connected = recvCell(ssl_sock)
+circ.streamRecieved(connected['pl'])
+print "Stream successfully established"
 while True:
     print recvCell(ssl_sock)
 
