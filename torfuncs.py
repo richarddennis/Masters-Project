@@ -41,8 +41,32 @@ def buildCell(circid, command, payload):
                 payload = padding(payload)
                # payload = ''.join(payload)
         cell += payload
-        return cell
-            
+        return cell    
+
+
+class TorHop:
+    def __init__(self, KH, Df, Db, Kf, Kb):
+        self.KH = KH
+        self.Df = Df
+        self.Db = Db
+        self.Kf = Kf
+        self.Kb = Kb
+
+        self.fwdSha = SHA.new()
+        self.fwdSha.update(Df)
+        self.bwdSha = SHA.new()
+        self.bwdSha.update(Db)
+
+        ctr = Counter.new(128,initial_value=0)
+        self.fwdCipher = AES.new(Kf, AES.MODE_CTR, counter=ctr)
+        ctr = Counter.new(128,initial_value=0)
+        self.bwdCipher = AES.new(Kb, AES.MODE_CTR, counter=ctr)
+    def encrypt(self, data):
+        return self.fwdCipher.encrypt(data)
+    def decrypt(self, data):
+        return self.bwdCipher.decrypt(data)
+
+
 #Tor KDF function
 def kdf_tor(K0, length):
     K = ''
@@ -81,16 +105,37 @@ def hybridEncrypt(rsa, m):
         return rsapart + sympart
 
 def remoteKeyX (on):
+    # r = consensus.getRouter("orion")
+    # print "r (orion router): ", r
+
+    # x = numunpack(os.urandom(DH_SEC_LEN))
+
+    # #calculates Big X (our public key)
+    # X = pow(DH_G,x,DH_P)
+    # X = numpack(X,DH_LEN)
+    # print X
+
+    # router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
+    # router_onion_key = consensus.getRouterOnionKey(router_descriptor)
+    # print router_onion_key
+
+    # remoteKey = RSA.importKey(router_onion_key)
+    #creates the payload to the first hop
+
     r = consensus.getRouter(on)
-    router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
-    router_onion_key = consensus.getRouterOnionKey(router_descriptor)
-    remoteKey = RSA.importKey(router_onion_key)
     x = numunpack(os.urandom(DH_SEC_LEN))
+
     X = pow(DH_G,x,DH_P)
     X = numpack(X,DH_LEN)
+
+    router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
+    router_onion_key = consensus.getRouterOnionKey(router_descriptor)
+
     remoteKey = RSA.importKey(router_onion_key)
+    remoteKey = RSA.importKey(router_onion_key)
+    
     payload = hybridEncrypt(remoteKey, X)
-    return (payload, x)
+    return (x, payload)
 
 
 def decodeCreatedCell(created, x):
@@ -108,10 +153,8 @@ def decodeCreatedCell(created, x):
     (KH, Df, Db) = [KK.read(HASH_LEN) for i in range(3)]
     (Kf, Kb) = [KK.read(KEY_LEN) for i in range(2)]
     assert DerivativeKeyData == KH
-    return KH, Df, Db, Kf, Kb    
-
-
-
+    #return KH, Df, Db, Kf, Kb    
+    return TorHop(KH, Df, Db, Kf, Kb)
 
 def buildExtendPayload(on):
 
@@ -122,7 +165,7 @@ def buildExtendPayload(on):
     extend += struct.pack("H", int(r['orport']))
 
 
-    pl_To_Next, x = remoteKeyX(on) #made into function much better than repeating code
+    x, pl_To_Next = remoteKeyX(on) #made into function much better than repeating code
     #creates the payload to the next hop
     #pl_To_Next = hybridEncrypt(remoteKey, X)
     extend += pl_To_Next
@@ -130,6 +173,33 @@ def buildExtendPayload(on):
 
     return (x, extend)
     #return extend #, x #, ip, port    
+
+
+def buildRelayCell(torhop, relayCmd, streamId, payload):
+#         # Relay command           [1 byte]
+#         # 'Recognized'            [2 bytes]
+#         # StreamID                [2 bytes]
+#         # Digest                  [4 bytes]
+#         # Length                  [2 bytes]
+#         # Data                    [PAYLOAD_LEN-11 bytes]
+
+    packet = struct.pack(">B", relayCmd)
+    packet += struct.pack(">H", 0)
+    packet += struct.pack(">H", streamId)
+    packet += struct.pack(">L", 0)
+    packet += struct.pack(">H", len(payload))
+    packet += payload
+
+    # padding
+    #packet += "\x00" * (509 - len(packet))
+    packet = padding(packet)
+    assert len(packet) == 509
+
+    torhop.fwdSha.update(packet)
+    packet = packet[0:5] + torhop.fwdSha.digest()[0:4] + packet[9:]
+
+    return packet
+
 
 def decodeRelayCell(cell):
 # #         # Relay command           [1 byte]
@@ -143,31 +213,3 @@ def decodeRelayCell(cell):
     celldata['pl'] = cell[11:celldata['length']+11]
     return celldata
 
-
-#     #def buildRelayCell(relayCmd, streamId, payload):
-# def buildRelayCell(relayCmd, streamId, payload):
-# #         # Relay command           [1 byte]
-# #         # 'Recognized'            [2 bytes]
-# #         # StreamID                [2 bytes]
-# #         # Digest                  [4 bytes]
-# #         # Length                  [2 bytes]
-# #         # Data                    [PAYLOAD_LEN-11 bytes]
-
-#     # packet = struct.pack(">B", relayCmd)
-#     # packet += struct.pack("H", 0)
-#     # packet += struct.pack("H", streamId)
-#     # packet += struct.pack("L", 0)
-#     # packet += struct.pack("H", len(payload))
-#     # packet += struct.pack(payload)
-
-#     packet = struct.pack(">BHHLH", relayCmd, 0, streamId, 0, len(payload)) + payload
-
-#     # padding
-#     #packet += "\x00" * (509 - len(packet))
-#     packet = padding(packet)
-#     assert len(packet) == 509
-
-#     fwdSha.update(packet)
-#     packet = packet[0:5] + fwdSha.digest()[0:4] + packet[9:]
-
-#     return packet
