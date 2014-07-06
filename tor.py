@@ -269,7 +269,7 @@ circ.handleCreated(created)
 
 #hop = "WorldWithPrivacyNY1"
 count=0
-for hop in ["TheVillage", "WorldWithPrivacyNY1", "TorLand1", "InternetMastering2"]:
+for hop in ["TheVillage", "WorldWithPrivacyNY1", "InternetMastering2"]: #"TorLand1"
     print "hop :", hop
     circ.extend(hop)
     extended = recvCell(ssl_sock)
@@ -298,7 +298,11 @@ print "data in Ascii", dataAscii
 #     print "Stream data recieved: ",relayData
 #     print "Data decrypted", circ.recievedStreamData(relayData['pl'])#.encode('hex')
 
-
+# HSDir_List = consensus.get_HSDir_Flag()  # Allows us to only get the data containing the HSDir flags
+# print HSDir_List
+# for k, v in HSDir_List:
+#     if k == 'identity':
+#         print k
 
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
@@ -308,18 +312,12 @@ service_id, tld = onionAdd.split(".")
 
 REPLICAS = 2
 
-# print "Printing the consensus"
-# print consensus.fetchConsensusTxt()
-
-print "testing retriving HSDIR flags"
-print consensus.getHSDirFlag()
-
-
 print "service_id",service_id
 for replica in range(0, REPLICAS):
-    descriptorid = get_descriptor_Id(service_id, replica)    
-    print "descriptorid", descriptorid
-
+    descriptor_id = get_descriptor_Id(service_id, replica)    
+    print "descriptorid", descriptor_id
+    responsible_HSDir = find_responsible_HSDir(descriptor_id)
+    print responsible_HSDir
 
 
 
