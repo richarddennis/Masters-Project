@@ -41,12 +41,26 @@ def fetchConsensus():
         if q[0] == 'v':
             router[curRouter]['version'] = ' '.join(q[1:])
 
-# Fetch router descrition array given name
+# Fetch router description array given name
 def getRouter(nm):
     for r in router.itervalues():
         if r['nick'] == nm:
             return r
     return None
+
+def fetchConsensusTxt():
+    global router,flags
+    consensus_txt = zlib.decompress(getDoc("status-vote/current/consensus.z"))
+    return consensus_txt
+
+#Fetch router descriptors based on a given flag
+def getHSDirFlag():
+   for r in router.itervalues():
+        if 'HSDir' in r['flags']:
+            return r
+   return None
+
+
 
 # Fetch text router descriptor containing keys
 def getRouterDescriptor(identityhash):
