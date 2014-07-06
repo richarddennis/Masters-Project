@@ -24,6 +24,8 @@ import struct
 
 from hashlib import sha1
 from base64 import b32encode, b32decode
+from random import randint
+from bisect import bisect_left
 
 def get_descriptor_Id(service_id_base32, replica, descriptor_cookie = ""):
   service_id = b32decode(service_id_base32, 1)
@@ -46,6 +48,29 @@ def get_descriptor_Id(service_id_base32, replica, descriptor_cookie = ""):
 def get_time_period(time, deviation, service_id):
   REND_TIME_PERIOD_V2_DESC_VALIDITY = 24 * 60 * 60
   return int(((time + ((struct.unpack('B', service_id[0])[0] * REND_TIME_PERIOD_V2_DESC_VALIDITY) ) / 256) ) / REND_TIME_PERIOD_V2_DESC_VALIDITY + deviation)
+
+def find_responsible_HSDir(descriptor_id):
+   responsible_HSDirs = []
+   identity_list = []
+
+   HSDir_List = consensus.get_HSDir_Flag()  # Allows us to only get the data containing the HSDir flags
+
+   descriptor_position = bisect_left(HSDir_List, b32decode(descriptor_id,1))
+   
+   for i in range(0,3):
+      responsible_HSDirs.append(HSDir_List[descriptor_position+i])
+      # IndexError: list index out of range  
+   return responsible_HSDirs
+ 
+
+
+
+def create_rendezvous_cookie():
+   rendezvous_cookie = os.urandom(20) #Random 20 byte value
+   return rendezvous_cookie
+
+
+
 
 
 
