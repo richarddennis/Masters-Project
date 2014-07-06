@@ -54,11 +54,19 @@ def fetchConsensusTxt():
     return consensus_txt
 
 #Fetch router descriptors based on a given flag
-def getHSDirFlag():
+def get_HSDir_Flag():
+   HSDirList = [] 
    for r in router.itervalues():
-        if 'HSDir' in r['flags']:
-            return r
-   return None
+       if 'HSDir' in r['flags']:
+           #return r
+           HSDirList.append(r) # add to the list
+   return HSDirList # return the list
+
+# def getHSDirFlag():
+#    for r in router.itervalues():
+#         if 'HSDir' in r['flags']:
+#             return r
+#    return None
 
 
 
