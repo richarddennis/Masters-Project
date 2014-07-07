@@ -68,6 +68,8 @@ def get_HSDir_Flag():
 #             return r
 #    return None
 
+def get_router_by_hash(identity):
+    return router[identity]
 
 
 # Fetch text router descriptor containing keys
