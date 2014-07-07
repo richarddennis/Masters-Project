@@ -269,7 +269,7 @@ circ.handleCreated(created)
 
 #hop = "WorldWithPrivacyNY1"
 count=0
-for hop in ["TheVillage", "WorldWithPrivacyNY1", "InternetMastering2"]: #"TorLand1"
+for hop in ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]: #"TorLand1"
     print "hop :", hop
     circ.extend(hop)
     extended = recvCell(ssl_sock)
@@ -283,20 +283,22 @@ connected = recvCell(ssl_sock)
 circ.streamRecieved(connected['pl'])
 print "Stream successfully established"
 
-data = "GET/ip HTTP/1.0"
+data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
 print "data", data
-dataAscii = [ord(c) for c in data] #converts to ascii
-dataAscii = ", ".join(map(str, dataAscii))
-print "data in Ascii", dataAscii
+# dataAscii = [ord(c) for c in data] #converts to ascii
+# dataAscii = ", ".join(map(str, dataAscii))
+# dataSend = binascii.hexlify(dataAscii)
+
+# print "data in to send to stream", dataSend
 
 ## Currently not working keeping getting back a relay end 
 
-# circ.streamData(1, dataAscii)
+circ.streamData(1, data)
 
 # while True:
-#     relayData = recvCell(ssl_sock)
-#     print "Stream data recieved: ",relayData
-#     print "Data decrypted", circ.recievedStreamData(relayData['pl'])#.encode('hex')
+#      relayData = recvCell(ssl_sock)
+#      print "Stream data recieved: ",relayData
+#      print "Data decrypted", circ.recievedStreamData(relayData['pl'])#.encode('hex')
 
 # HSDir_List = consensus.get_HSDir_Flag()  # Allows us to only get the data containing the HSDir flags
 # print HSDir_List
