@@ -55,12 +55,19 @@ def find_responsible_HSDir(descriptor_id):
 
    HSDir_List = consensus.get_HSDir_Flag()  # Allows us to only get the data containing the HSDir flags
 
-   descriptor_position = bisect_left(HSDir_List, b32decode(descriptor_id,1))
-   
+   orHashList = sorted(map(lambda x: x['identity'], HSDir_List))
+
+   print orHashList
+
+   descriptor_position = bisect_left(orHashList, b32decode(descriptor_id,1)) #should be identiy list not HSDir_List
+   print descriptor_id
    for i in range(0,3):
-      responsible_HSDirs.append(HSDir_List[descriptor_position+i])
+      responsible_HSDirs.append(orHashList[descriptor_position+i])  
+
       # IndexError: list index out of range  
-   return responsible_HSDirs
+
+   return (map(lambda x: consensus.get_router_by_hash(x) ,responsible_HSDirs))
+
  
 
 
@@ -68,6 +75,7 @@ def find_responsible_HSDir(descriptor_id):
 def create_rendezvous_cookie():
    rendezvous_cookie = os.urandom(20) #Random 20 byte value
    return rendezvous_cookie
+
 
 
 
