@@ -233,9 +233,15 @@ class TorCircuit():
         relayDecoded = decodeRelayCell(data)        
         return relayDecoded
 
-    def establish_rendezvous_point(self):
-        rendezvous_cookie = rendFuncs.create_rendezvous_cookie()
-        return rendezvous_cookie
+    def rendezvous_point_payload(self):
+        rendezvous_cookie = create_rendezvous_cookie()
+        payload = struct.pack('!20s', rendezvous_cookie)
+        return payload
+
+    def establish_rendezvous_point(self, strId, payload): 
+        relay = buildRelayCell(self.hops[-1], 33, strId, payload)   
+        self.send(relay)
+
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
 
@@ -345,13 +351,13 @@ while True:
     print data['pl']
     service_descriptor_data.append(data['pl'])
 
+rendezvous_cookie = circ.rendezvous_point_payload()
 
-
-
-
-
-
-
+circ.establish_rendezvous_point(1, rendezvous_cookie)
+relayData = recvCell(ssl_sock)
+data = circ.recievedStreamData(relayData['pl'])
+assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS_ESTABLISHED is recieved
+print data
 
 
 
