@@ -285,41 +285,60 @@ print "Stream successfully established"
 
 data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
 print "data", data
-# dataAscii = [ord(c) for c in data] #converts to ascii
-# dataAscii = ", ".join(map(str, dataAscii))
-# dataSend = binascii.hexlify(dataAscii)
 
-# print "data in to send to stream", dataSend
-
-## Currently not working keeping getting back a relay end 
 
 circ.streamData(1, data)
 
-# while True:
-#      relayData = recvCell(ssl_sock)
-#      print "Stream data recieved: ",relayData
-#      print "Data decrypted", circ.recievedStreamData(relayData['pl'])#.encode('hex')
+# With this enabled it works perfectly fine but later on will prevent the stream to the web lookup from happening
 
-# HSDir_List = consensus.get_HSDir_Flag()  # Allows us to only get the data containing the HSDir flags
-# print HSDir_List
-# for k, v in HSDir_List:
-#     if k == 'identity':
-#         print k
+# while True:
+#     relayData = recvCell(ssl_sock)
+#     print "Stream data recieved: ",relayData
+#     recieved_data = circ.recievedStreamData(relayData['pl'])
+#     print recieved_data
+#     if (recieved_data['relayCmd']) == 3:
+#         break
 
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
 print "Retriving hidden service descriptor"
-onionAdd = "idnxcnkne4qt76tg.onion"
-service_id, tld = onionAdd.split(".")
+onion_Add = "idnxcnkne4qt76tg" #homepage of the Tor project
 
-REPLICAS = 2
+responsible_HSDir_list = []
+descriptor_id_list = []
 
-print "service_id",service_id
-for replica in range(0, REPLICAS):
-    descriptor_id = get_descriptor_Id(service_id, replica)    
-    print "descriptorid", descriptor_id
+
+for i in range(0, 2):
+    descriptor_id = get_descriptor_Id(onion_Add, i)
+    descriptor_id_list.append(descriptor_id)
     responsible_HSDir = find_responsible_HSDir(descriptor_id)
-    print responsible_HSDir
+    responsible_HSDir_list.append(responsible_HSDir) # Saves all responsible HSDir information in a list to use later                   
+    # print "Responsible HSDirs", responsible_HSDir
+
+print "responsible_HSDir_list", responsible_HSDir_list
+
+
+# Extracts the data here from the list generated above to connect to the web url to get the rendezvous2 data
+ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
+dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
+
+web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
+
+print web_addresses
+
+service_descriptor_data = "GET HTTP/1.1\r\nHost:"+web_addresses[1]+"\r\n\r\n"
+print "data", service_descriptor_data
+
+
+circ.streamData(1, data)
+while True:
+    relayData = recvCell(ssl_sock)
+    print "Stream data recieved: ",relayData
+    data = circ.recievedStreamData(relayData['pl'])
+    # data = circ.recievedStreamData(relayData['pl'])
+    print data
+    if (data['relayCmd']) == 3:
+        break
 
 
 
@@ -337,6 +356,49 @@ for replica in range(0, REPLICAS):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+# print "No. of elements in HSDir_list", len(responsible_HSDir_list) #Currently 2 
+# print "type of responsible_HSDir_list", type(responsible_HSDir_list) #list
+
+
+# first_responsible_HSDir_dict = {}
+# for dic in responsible_HSDir_list[0]:
+#     first_responsible_HSDir_dict.update(dic)
+
+# flattened= ([x for y in  first_responsible_HSDir_dict for x in y])
+# print [x.get('identityhash') for x in flattened]
+
+# identityhash = [i.get('identityhash') for j in responsible_HSDir_list for i in j]
+# print(identityhash)
+
+# print first_responsible_HSDir_dict
+
+# first_responsible_HSDir_dict = responsible_HSDir_list[1][1]  #using list access
+# ip_address = first_responsible_HSDir_dict['ip']
+
+# ip_addresses = []
+# ports =[]
+# for j in range(0, 2):
+#     ip_addresses.append( [i.get('ip') for i in responsible_HSDir_list[j]])
+#     ports.append( [i.get('ip') for i in responsible_HSDir_list[j]])
+
+
+# ip_addresses = [i.get('ip') for j in data for i in j]
+
+# print ip_addresses
+#print ports
 
 
 # retrieve the consensus
