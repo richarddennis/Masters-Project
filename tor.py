@@ -233,6 +233,9 @@ class TorCircuit():
         relayDecoded = decodeRelayCell(data)        
         return relayDecoded
 
+    def establish_rendezvous_point(self):
+        rendezvous_cookie = rendFuncs.create_rendezvous_cookie()
+        return rendezvous_cookie
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
 
@@ -326,19 +329,21 @@ web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
 print web_addresses
 
-service_descriptor_data = "GET HTTP/1.1\r\nHost:"+web_addresses[1]+"\r\n\r\n"
+service_descriptor_data = "GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
 print "data", service_descriptor_data
 
-
+# sends the get request to a directory server
 circ.streamData(1, data)
+
+#Retrieves the data recieved from the request, looking for a 200 back
+service_descriptor_data = []
 while True:
     relayData = recvCell(ssl_sock)
-    print "Stream data recieved: ",relayData
     data = circ.recievedStreamData(relayData['pl'])
-    # data = circ.recievedStreamData(relayData['pl'])
-    print data
     if (data['relayCmd']) == 3:
         break
+    print data['pl']
+    service_descriptor_data.append(data['pl'])
 
 
 
