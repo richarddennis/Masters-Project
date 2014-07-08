@@ -63,3 +63,16 @@ def connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list):
       a_elem = i*3 + j
       web_addresses.append('http://'+ip_addresses[a_elem]+':'+str(dirport[a_elem])+'/tor/rendezvous2/'+descriptor_id_list[i])
   return web_addresses
+
+def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
+#  629           VER    Version byte: set to 2.        [1 octet]
+#  630           IP     Rendezvous point's address    [4 octets]
+#  631           PORT   Rendezvous point's OR port    [2 octets]
+#  632           ID     Rendezvous point identity ID [20 octets]
+#  633           KLEN   Length of onion key           [2 octets]
+#  634           KEY    Rendezvous point onion key [KLEN octets]
+#  635           RC     Rendezvous cookie            [20 octets]
+
+
+  ver = struct.pack ("<H",2)  
+  return ""
