@@ -4,17 +4,11 @@ import binascii
 from collections import namedtuple
 import pprint
 import os
-#from OpenSSL import crypto
 import time
 import ssl,socket,struct
 from binascii import hexlify
-#from Crypto.Hash import SHA
-#from Crypto.Cipher import *
-#from Crypto.PublicKey import *
 import sys
 import itertools
-
-#from Crypto.Util import Counter
 import consensus
 
 
@@ -246,6 +240,12 @@ class TorCircuit():
         relay = buildRelayCell(self.hops[-1], 33, strId, payload)   
         self.send(relay)
 
+    def a_op_to_induction_point(onion_Add, rp_address, rp_or_port, rp_id, rp_ok, rc):
+        # PK_ID  Identifier for Bob's PK      [20 octets]
+        cleartext = struct.pack('!20s', onion_Add)
+        encrypted = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
+
+
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
 
@@ -265,12 +265,12 @@ print "Packet to send is : ", verCell
 ssl_sock.send(verCell)
 
 srv_netinfocell = recvCell(ssl_sock, 8)
-print "netinfoCell recieved ",srv_netinfocell 
+print "netinfoCell recieved " 
 srv_decodeNetInfo = decodeNetInfo(srv_netinfocell['pl']) # proccess the payload from the netinfo cell
 
 srv_NetInfoToSend = NetInfoToSend(**srv_decodeNetInfo)
 netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
-print "netinfo to send ", netinfoCell.encode('hex')
+#print "netinfo to send ", netinfoCell.encode('hex')
 ssl_sock.send(netinfoCell)
 print "netinfo sent"
 firstHop = "orion"
@@ -280,16 +280,17 @@ circ.toFirst(firstHop)
 created = recvCell(ssl_sock)
 circ.handleCreated(created)
 
-#hop = "WorldWithPrivacyNY1"
-count=0
-for hop in ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]: #"TorLand1"
+hops_first_circ = ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]
+print hops_first_circ
+count=0 
+for hop in hops_first_circ:
     print "hop :", hop
     circ.extend(0, hop)
     extended = recvCell(ssl_sock)
-    print "extended recieved", extended
     circ.extendedRecieved(extended['pl'])
     count = count + 1
     print "success, hop ",count
+
 
 circ.createStream(1, "ghowen.me", 80)
 connected = recvCell(ssl_sock)
@@ -297,7 +298,7 @@ circ.streamRecieved(connected['pl'])
 print "Stream successfully established"
 
 data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-print "data", data
+#print "data", data
 
 
 circ.streamData(1, data)
@@ -335,7 +336,7 @@ print "responsible_HSDir_list", responsible_HSDir_list
 ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
 dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
 nickname = [i.get('nick') for j in responsible_HSDir_list for i in j]
-
+identity = [i.get('identity') for j in responsible_HSDir_list for i in j]
 
 web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
@@ -362,10 +363,10 @@ rendezvous_cookie = circ.rendezvous_point_payload()
 circ.establish_rendezvous_point(1, rendezvous_cookie)
 relayData = recvCell(ssl_sock)
 data = circ.recievedStreamData(relayData['pl'])
-assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS_ESTABLISHED is recieved
+assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
 print data
-
-
+                                                                                                                                                                         
+                                                                                                                                    
 hop_list = ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]
 hop_list.append(nickname[0]) #first IP
 print hop_list #circuit we will be using
@@ -380,19 +381,25 @@ for hop_two in hop_list:
     print "hop :", hop_two
     circ.extend(0, hop_two)
     extended = recvCell(ssl_sock)
-    print "extended recieved", extended
     circ.extendedRecieved(extended['pl'])
     count = count + 1
     print "success, hop ",count
 
+rendezvous_point = hops_first_circ[(len(hops_first_circ)-1)]
+rp_ip = consensus.getRouter(rendezvous_point)['ip']
+rp_or_port = consensus.getRouter(rendezvous_point)['orport']
+rp_id = consensus.getRouter(rendezvous_point)['identity']
+print rp_id.encode('hex'), rp_ip, rp_or_port
 
-
-
-
-
-
-
-
+# (in the v2 intro protocol)
+#  629           VER   Version byte: set to 2.        [1 octet]
+#  630           IP     Rendezvous point's address    [4 octets]
+#  631           PORT   Rendezvous point's OR port    [2 octets]
+#  632           ID     Rendezvous point identity ID [20 octets]
+#  633           KLEN   Length of onion key           [2 octets]
+#  634           KEY    Rendezvous point onion key [KLEN octets]
+#  635           RC     Rendezvous cookie            [20 octets]
+# 636           g^x    Diffie-Hellman data, part 1 [128 octets]
 
 
 
