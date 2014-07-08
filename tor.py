@@ -169,6 +169,7 @@ class TorCircuit():
         self.socket = sock
         self.tempX = 0
         self.packetSendCount = 0
+        self.cookie = []
 
 #parse relaycell as str
     def encrypt(self, relayCell):
@@ -192,9 +193,9 @@ class TorCircuit():
         t1 = decodeCreatedCell(created, self.tempX)
         self.hops.append(t1)
 
-    def extend(self, on):
+    def extend(self, stream_id, on):
         (self.tempX, extend) = buildExtendPayload(on)
-        extendr = buildRelayCell(self.hops[-1], 6, 0, extend)
+        extendr = buildRelayCell(self.hops[-1], 6, stream_id, extend)
         self.send(extendr)
 
     def send(self, packet):
@@ -235,6 +236,9 @@ class TorCircuit():
 
     def rendezvous_point_payload(self):
         rendezvous_cookie = create_rendezvous_cookie()
+        if self.cookie != []:
+            self.cookie.pop
+        self.cookie.append(rendezvous_cookie)  #keeps it for use later on   
         payload = struct.pack('!20s', rendezvous_cookie)
         return payload
 
@@ -280,7 +284,7 @@ circ.handleCreated(created)
 count=0
 for hop in ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]: #"TorLand1"
     print "hop :", hop
-    circ.extend(hop)
+    circ.extend(0, hop)
     extended = recvCell(ssl_sock)
     print "extended recieved", extended
     circ.extendedRecieved(extended['pl'])
@@ -330,6 +334,8 @@ print "responsible_HSDir_list", responsible_HSDir_list
 # Extracts the data here from the list generated above to connect to the web url to get the rendezvous2 data
 ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
 dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
+nickname = [i.get('nick') for j in responsible_HSDir_list for i in j]
+
 
 web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
@@ -360,8 +366,24 @@ assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS_ESTAB
 print data
 
 
+hop_list = ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]
+hop_list.append(nickname[0]) #first IP
+print hop_list #circuit we will be using
 
+circ = TorCircuit(ssl_sock, 2)
+circ.toFirst(firstHop)
+created = recvCell(ssl_sock)
+circ.handleCreated(created)
 
+count = 0
+for hop_two in hop_list:
+    print "hop :", hop_two
+    circ.extend(0, hop_two)
+    extended = recvCell(ssl_sock)
+    print "extended recieved", extended
+    circ.extendedRecieved(extended['pl'])
+    count = count + 1
+    print "success, hop ",count
 
 
 
