@@ -64,6 +64,16 @@ def connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list):
       web_addresses.append('http://'+ip_addresses[a_elem]+':'+str(dirport[a_elem])+'/tor/rendezvous2/'+descriptor_id_list[i])
   return web_addresses
 
+def calc_rendezvous_point_data(rendezvous_point):
+  rp_ip = consensus.getRouter(rendezvous_point)['ip']
+  rp_or_port = consensus.getRouter(rendezvous_point)['orport']
+  rp_id = consensus.getRouter(rendezvous_point)['identity']
+  router_descriptor = consensus.getRouterDescriptor((consensus.getRouter(rendezvous_point))['identityhash'])
+  onion_key = consensus.getRouterOnionKey(router_descriptor)
+  return rp_id, rp_ip, rp_or_port, onion_key
+
+
+
 def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
 #  629           VER    Version byte: set to 2.        [1 octet]
 #  630           IP     Rendezvous point's address    [4 octets]
