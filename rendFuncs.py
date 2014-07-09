@@ -29,6 +29,9 @@ from base64 import b32encode, b32decode
 from random import randint
 from bisect import bisect_left
 
+from torfuncs import *
+
+
 def get_descriptor_Id(onion_Add, replica):
   service_id = b32decode(onion_Add, 1)
   time_period = int((((time.time()) + ((struct.unpack('B', service_id[0])[0] * 86400) ) / 256) ) / 86400 + 0)
@@ -67,7 +70,7 @@ def connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list):
 def calc_rendezvous_point_data(rendezvous_point):
   rp_ip = consensus.getRouter(rendezvous_point)['ip']
   rp_or_port = consensus.getRouter(rendezvous_point)['orport']
-  rp_id = consensus.getRouter(rendezvous_point)['identity']
+  rp_id = consensus.getRouter(rendezvous_point)['identityhash']
   router_descriptor = consensus.getRouterDescriptor((consensus.getRouter(rendezvous_point))['identityhash'])
   onion_key = consensus.getRouterOnionKey(router_descriptor)
   return rp_id, rp_ip, rp_or_port, onion_key
@@ -82,7 +85,18 @@ def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
 #  633           KLEN   Length of onion key           [2 octets]
 #  634           KEY    Rendezvous point onion key [KLEN octets]
 #  635           RC     Rendezvous cookie            [20 octets]
+#  636           g^x    Diffie-Hellman data, part 1 [128 octets]
 
+  data = struct.pack ('!1s', str(2))
+  data += struct.pack ('!4s', rp_address)#.split('.'))  
+  data += struct.pack ('!2s', rp_or_port)
+  data += struct.pack ('!20s', rp_id)
+  data += struct.pack ('!2s', str(len(rp_ok)))
+  data += (struct.pack ('!i', len(rp_ok)) + rp_ok)
+  data += struct.pack ('!20s', rc)
 
-  ver = struct.pack ("<H",2)  
-  return ""
+  x = numunpack(os.urandom(DH_SEC_LEN))
+  X = pow(DH_G,x,DH_P)
+  data += struct.pack ('!128s', str(X))
+
+  return data
