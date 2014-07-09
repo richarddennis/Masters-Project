@@ -386,10 +386,9 @@ for hop_two in hop_list:
     print "success, hop ",count
 
 rendezvous_point = hops_first_circ[(len(hops_first_circ)-1)]
-rp_ip = consensus.getRouter(rendezvous_point)['ip']
-rp_or_port = consensus.getRouter(rendezvous_point)['orport']
-rp_id = consensus.getRouter(rendezvous_point)['identity']
-print rp_id.encode('hex'), rp_ip, rp_or_port
+
+rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
+print rp_id.encode('hex'), rp_ip, rp_or_port, onion_key.encode('hex')
 
 # (in the v2 intro protocol)
 #  629           VER   Version byte: set to 2.        [1 octet]
@@ -400,6 +399,57 @@ print rp_id.encode('hex'), rp_ip, rp_or_port
 #  634           KEY    Rendezvous point onion key [KLEN octets]
 #  635           RC     Rendezvous cookie            [20 octets]
 # 636           g^x    Diffie-Hellman data, part 1 [128 octets]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
