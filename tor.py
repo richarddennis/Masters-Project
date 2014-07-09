@@ -240,11 +240,14 @@ class TorCircuit():
         relay = buildRelayCell(self.hops[-1], 33, strId, payload)   
         self.send(relay)
 
-    def a_op_to_induction_point(onion_Add, rp_address, rp_or_port, rp_id, rp_ok, rc):
+    def a_op_to_induction_point(self, strId, PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
         # PK_ID  Identifier for Bob's PK      [20 octets]
-        cleartext = struct.pack('!20s', onion_Add)
-        encrypted = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
-
+        cleartext = struct.pack('!20s', PK_ID)
+        data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
+        data = self.encrypt(data)
+        payload = cleartext + data
+        cell = buildRelayCell(self.hops[-1], 34, strId, payload)
+        self.send(cell)
 
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
@@ -273,17 +276,18 @@ netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
 #print "netinfo to send ", netinfoCell.encode('hex')
 ssl_sock.send(netinfoCell)
 print "netinfo sent"
-firstHop = "orion"
 
+hops_in_circ = ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
+
+firstHop = hops_in_circ[0]
 circ = TorCircuit(ssl_sock, 1)
 circ.toFirst(firstHop)
 created = recvCell(ssl_sock)
 circ.handleCreated(created)
 
-hops_first_circ = ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]
-print hops_first_circ
+
 count=0 
-for hop in hops_first_circ:
+for hop in hops_in_circ[1:len(hops_in_circ)]:
     print "hop :", hop
     circ.extend(0, hop)
     extended = recvCell(ssl_sock)
@@ -296,9 +300,7 @@ circ.createStream(1, "ghowen.me", 80)
 connected = recvCell(ssl_sock)
 circ.streamRecieved(connected['pl'])
 print "Stream successfully established"
-
 data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-#print "data", data
 
 
 circ.streamData(1, data)
@@ -367,8 +369,10 @@ assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOU
 print data
                                                                                                                                                                          
                                                                                                                                     
-hop_list = ["WorldWithPrivacyNY1","TorLand1", "TheVillage"]
-hop_list.append(nickname[0]) #first IP
+hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
+hop_list.append(nickname[0]) #first IP  # This is the Induction point
+firstHop = hop_list[0]
+
 print hop_list #circuit we will be using
 
 circ = TorCircuit(ssl_sock, 2)
@@ -377,7 +381,7 @@ created = recvCell(ssl_sock)
 circ.handleCreated(created)
 
 count = 0
-for hop_two in hop_list:
+for hop_two in hop_list[1:len(hop_list)]:
     print "hop :", hop_two
     circ.extend(0, hop_two)
     extended = recvCell(ssl_sock)
@@ -385,26 +389,15 @@ for hop_two in hop_list:
     count = count + 1
     print "success, hop ",count
 
-rendezvous_point = hops_first_circ[(len(hops_first_circ)-1)]
+rendezvous_point = hop_list[(len(hop_list)-1)]
 
+PK_ID = descriptor_id_list[0]
 rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
-print rp_id.encode('hex'), rp_ip, rp_or_port, onion_key.encode('hex')
 
-# (in the v2 intro protocol)
-#  629           VER   Version byte: set to 2.        [1 octet]
-#  630           IP     Rendezvous point's address    [4 octets]
-#  631           PORT   Rendezvous point's OR port    [2 octets]
-#  632           ID     Rendezvous point identity ID [20 octets]
-#  633           KLEN   Length of onion key           [2 octets]
-#  634           KEY    Rendezvous point onion key [KLEN octets]
-#  635           RC     Rendezvous cookie            [20 octets]
-# 636           g^x    Diffie-Hellman data, part 1 [128 octets]
-
-
-
-
-
-
+circ.a_op_to_induction_point(2, PK_ID, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
+data = recvCell(ssl_sock)
+print data['pl'].encode('hex')
+ 
 
 
 
