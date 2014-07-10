@@ -243,11 +243,27 @@ class TorCircuit():
     def a_op_to_induction_point(self, strId, PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
         # PK_ID  Identifier for Bob's PK      [20 octets]
         cleartext = struct.pack('!20s', PK_ID)
+        print cleartext                                                                                                                                                                 
         data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
         data = self.encrypt(data)
         payload = cleartext + data
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
+
+    def build_circuit(self, hops_in_circ, firstHop):
+        circ.toFirst(firstHop)
+        created = recvCell(ssl_sock)
+        circ.handleCreated(created)
+        count=0 
+        for hop in hops_in_circ[1:len(hops_in_circ)]:
+            print "hop :", hop
+            circ.extend(0, hop)
+            extended = recvCell(ssl_sock)
+            circ.extendedRecieved(extended['pl'])
+            count = count + 1
+            print "success, hop ",count
+
+
 
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
@@ -278,22 +294,10 @@ ssl_sock.send(netinfoCell)
 print "netinfo sent"
 
 hops_in_circ = ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
-
 firstHop = hops_in_circ[0]
-circ = TorCircuit(ssl_sock, 1)
-circ.toFirst(firstHop)
-created = recvCell(ssl_sock)
-circ.handleCreated(created)
 
-
-count=0 
-for hop in hops_in_circ[1:len(hops_in_circ)]:
-    print "hop :", hop
-    circ.extend(0, hop)
-    extended = recvCell(ssl_sock)
-    circ.extendedRecieved(extended['pl'])
-    count = count + 1
-    print "success, hop ",count
+circ = TorCircuit(ssl_sock, 1) 
+circ.build_circuit(hops_in_circ, firstHop )
 
 
 circ.createStream(1, "ghowen.me", 80)
@@ -367,8 +371,7 @@ relayData = recvCell(ssl_sock)
 data = circ.recievedStreamData(relayData['pl'])
 assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
 print data
-                                                                                                                                                                         
-                                                                                                                                    
+                                                                                                                                                                                                                                                                                                          
 hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
 hop_list.append(nickname[0]) #first IP  # This is the Induction point
 firstHop = hop_list[0]
@@ -376,18 +379,7 @@ firstHop = hop_list[0]
 print hop_list #circuit we will be using
 
 circ = TorCircuit(ssl_sock, 2)
-circ.toFirst(firstHop)
-created = recvCell(ssl_sock)
-circ.handleCreated(created)
-
-count = 0
-for hop_two in hop_list[1:len(hop_list)]:
-    print "hop :", hop_two
-    circ.extend(0, hop_two)
-    extended = recvCell(ssl_sock)
-    circ.extendedRecieved(extended['pl'])
-    count = count + 1
-    print "success, hop ",count
+circ.build_circuit(hop_list, firstHop )
 
 rendezvous_point = hop_list[(len(hop_list)-1)]
 
