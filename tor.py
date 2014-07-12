@@ -10,7 +10,10 @@ from binascii import hexlify
 import sys
 import itertools
 import consensus
-
+import sys
+import base64
+import urllib2
+import zlib
 
 from torfuncs import *
 from rendFuncs import *
@@ -377,16 +380,7 @@ print hop_list #circuit we will be using
 circ = TorCircuit(ssl_sock, 2)
 create_circuits(hop_list[0], hop_list) 
 
-# print "type", type(web_addresses[0])
-# ip, port = web_addresses[1].split(":")
-# print ip
-# print port
-
-#111.69.52.236
-#9030
 print web_addresses[1]
-
-#130.185.109.143:23
 
 circ.create_stream_hsdir(2, web_addresses[1])
 connected = recvCell(ssl_sock)
@@ -397,25 +391,60 @@ print circ.streamRecieved(connected['pl'])
 
 print "Stream successfully established to HSDir"
 
-# data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-
-
 # sends the get request to a directory server
 circ.streamData(2, service_descriptor_data)
-# data = recvCell(ssl_sock)
-# print data#.encode('hex')
-# data = circ.recievedStreamData(data['pl'])
-# print data['pl']
 
-stream_data_dir = []
+file_to_save = descriptor_id_list[1]+".txt"
+
+text_file = open(file_to_save, "w") # creates a file to write the data recieved from the stream, done ths so always got a copy, saves format etc
+
 while True:
     relayData = recvCell(ssl_sock)
     data = circ.recievedStreamData(relayData['pl'])
-    if (data['relayCmd']) == 3:
+    if (data['relayCmd']) == 3: #End of stream data
         break
     print data['pl']
-    stream_data_dir.append(data['pl'])
-print stream_data_dir
+    text_file.write(data['pl'])
+text_file.close()
+
+rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = decode_recieved_document(file_to_save)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # rendezvous_point = hop_list[(len(hop_list)-1)]
