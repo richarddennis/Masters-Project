@@ -213,10 +213,16 @@ class TorCircuit():
         relay = buildRelayCell(self.hops[-1], 1, strId, payload)
         self.send(relay)
 
+    def create_stream_hsdir(self,strId, host):
+        payload = host + "\x00" + struct.pack(">L", 0)
+        relay = buildRelayCell(self.hops[-1], 13, strId, payload)
+        self.send(relay)        
+
     def streamRecieved(self, packet):
         connected = self.decrypt(packet)
+        print connected.encode('hex')
         relayDecoded = decodeRelayCell(connected)        
-        assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
+        #assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
 
     def streamData(self,strId, data):
         relay = buildRelayCell(self.hops[-1], 2, strId, data)
@@ -243,27 +249,24 @@ class TorCircuit():
     def a_op_to_induction_point(self, strId, PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
         # PK_ID  Identifier for Bob's PK      [20 octets]
         cleartext = struct.pack('!20s', PK_ID)
-        print cleartext                                                                                                                                                                 
         data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
         data = self.encrypt(data)
         payload = cleartext + data
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
 
-    def build_circuit(self, hops_in_circ, firstHop):
-        circ.toFirst(firstHop)
-        created = recvCell(ssl_sock)
-        circ.handleCreated(created)
-        count=0 
-        for hop in hops_in_circ[1:len(hops_in_circ)]:
-            print "hop :", hop
-            circ.extend(0, hop)
-            extended = recvCell(ssl_sock)
-            circ.extendedRecieved(extended['pl'])
-            count = count + 1
-            print "success, hop ",count
-
-
+def create_circuits(first_hop, hops_in_circ):
+    circ.toFirst(first_hop)
+    created = recvCell(ssl_sock)
+    circ.handleCreated(created)
+    count=0 
+    for hop in hops_in_circ[1:len(hops_in_circ)]:
+        print "hop :", hop
+        circ.extend(0, hop)
+        extended = recvCell(ssl_sock)
+        circ.extendedRecieved(extended['pl'])
+        count = count + 1
+        print "success, hop ",count
 
 # first_hop = raw_input("Enter the first hop to connect to (Case and space sensitive): ")
 # print first_hop
@@ -296,33 +299,34 @@ print "netinfo sent"
 hops_in_circ = ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
 firstHop = hops_in_circ[0]
 
-circ = TorCircuit(ssl_sock, 1) 
-circ.build_circuit(hops_in_circ, firstHop )
-
+circ = TorCircuit(ssl_sock, 1)
+create_circuits(hops_in_circ[0], hops_in_circ                                                                             )
 
 circ.createStream(1, "ghowen.me", 80)
 connected = recvCell(ssl_sock)
+print connected
 circ.streamRecieved(connected['pl'])
 print "Stream successfully established"
 data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
 
-
 circ.streamData(1, data)
 
-# With this enabled it works perfectly fine but later on will prevent the stream to the web lookup from happening
+#Retrieves the data recieved from the request, looking for a 200 back
+stream_data = []
+while True:
+    relayData = recvCell(ssl_sock)
+    data = circ.recievedStreamData(relayData['pl'])
+    if (data['relayCmd']) == 3:
+        break
+    print data['pl']
+    stream_data.append(data['pl'])
+print stream_data
 
-# while True:
-#     relayData = recvCell(ssl_sock)
-#     print "Stream data recieved: ",relayData
-#     recieved_data = circ.recievedStreamData(relayData['pl'])
-#     print recieved_data
-#     if (recieved_data['relayCmd']) == 3:
-#         break
 
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
 print "Retriving hidden service descriptor"
-onion_Add = "idnxcnkne4qt76tg" #homepage of the Tor project
+onion_Add = "kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
 
 responsible_HSDir_list = []
 descriptor_id_list = []
@@ -333,7 +337,6 @@ for i in range(0, 2):
     descriptor_id_list.append(descriptor_id)
     responsible_HSDir = find_responsible_HSDir(descriptor_id)
     responsible_HSDir_list.append(responsible_HSDir) # Saves all responsible HSDir information in a list to use later                   
-    # print "Responsible HSDirs", responsible_HSDir
 
 print "responsible_HSDir_list", responsible_HSDir_list
 
@@ -341,6 +344,7 @@ print "responsible_HSDir_list", responsible_HSDir_list
 # Extracts the data here from the list generated above to connect to the web url to get the rendezvous2 data
 ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
 dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
+port =  [i.get('port') for j in responsible_HSDir_list for i in j]
 nickname = [i.get('nick') for j in responsible_HSDir_list for i in j]
 identity = [i.get('identity') for j in responsible_HSDir_list for i in j]
 
@@ -348,21 +352,12 @@ web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
 print web_addresses
 
-service_descriptor_data = "GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
-print "data", service_descriptor_data
+#GET /tor/rendezvous2/<descriptor-id> HTTP/1.0
+# Host: <HSDir-IP>:<HSDir-port>
+service_descriptor_data = "GET /tor/rendezvous2/"+ descriptor_id_list[0] +" HTTP/1.1\r\nHost: "+web_addresses[0]+"\r\n\r\n"
 
-# sends the get request to a directory server
-circ.streamData(1, data)
-
-#Retrieves the data recieved from the request, looking for a 200 back
-service_descriptor_data = []
-while True:
-    relayData = recvCell(ssl_sock)
-    data = circ.recievedStreamData(relayData['pl'])
-    if (data['relayCmd']) == 3:
-        break
-    print data['pl']
-    service_descriptor_data.append(data['pl'])
+#"GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
+print "service_descriptor_data to send", service_descriptor_data
 
 rendezvous_cookie = circ.rendezvous_point_payload()
 
@@ -371,24 +366,56 @@ relayData = recvCell(ssl_sock)
 data = circ.recievedStreamData(relayData['pl'])
 assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
 print data
-                                                                                                                                                                                                                                                                                                          
+                                                                                                                                                                         
+                                                                                                                                    
 hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
-hop_list.append(nickname[0]) #first IP  # This is the Induction point
-firstHop = hop_list[0]
+hop_list.append(nickname[1]) #first IP  
+firstHop = hop_list[0]                                          
 
 print hop_list #circuit we will be using
 
 circ = TorCircuit(ssl_sock, 2)
-circ.build_circuit(hop_list, firstHop )
+create_circuits(hop_list[0], hop_list) 
 
-rendezvous_point = hop_list[(len(hop_list)-1)]
+# print "type", type(web_addresses[0])
+# ip, port = web_addresses[1].split(":")
+# print ip
+# print port
 
-PK_ID = descriptor_id_list[0]
-rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
+#111.69.52.236
+#9030
+print web_addresses[1]
 
-circ.a_op_to_induction_point(2, PK_ID, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
-data = recvCell(ssl_sock)
-print data['pl'].encode('hex')
+#130.185.109.143:23
+
+circ.create_stream_hsdir(2, web_addresses[1])#port[1])
+connected = recvCell(ssl_sock)
+
+# If the  address cannot be resolved, or a connection can't be established, the  exit node replies with a RELAY_END cell
+
+print connected 
+print circ.streamRecieved(connected['pl'])
+
+# print "Stream successfully established"
+
+# data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
+
+
+# sends the get request to a directory server
+# circ.streamData(2, service_descriptor_data)
+# data = recvCell(ssl_sock)
+# print data#.encode('hex')
+# data = circ.recievedStreamData(data['pl'])
+
+# print data['pl']
+
+
+# rendezvous_point = hop_list[(len(hop_list)-1)]
+
+# PK_ID = descriptor_id_list[0]
+# rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
+
+# circ.a_op_to_induction_point(2, PK_ID, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
  
 
 
@@ -585,4 +612,3 @@ print data['pl'].encode('hex')
 # print "extended decrypted ", extended.encode('hex')
 # #print type(extended)
 # hops.append(t2)
-
