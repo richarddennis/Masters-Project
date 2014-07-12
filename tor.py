@@ -215,14 +215,14 @@ class TorCircuit():
 
     def create_stream_hsdir(self,strId, host):
         payload = host + "\x00" + struct.pack(">L", 0)
-        relay = buildRelayCell(self.hops[-1], 13, strId, payload)
+        relay = buildRelayCell(self.hops[-1], 13, strId, payload)  #13 -- RELAY_BEGIN_DIR
         self.send(relay)        
 
     def streamRecieved(self, packet):
         connected = self.decrypt(packet)
         print connected.encode('hex')
         relayDecoded = decodeRelayCell(connected)        
-        #assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
+        assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
 
     def streamData(self,strId, data):
         relay = buildRelayCell(self.hops[-1], 2, strId, data)
@@ -396,18 +396,17 @@ connected = recvCell(ssl_sock)
 print connected 
 print circ.streamRecieved(connected['pl'])
 
-# print "Stream successfully established"
+print "Stream successfully established to HSDir"
 
 # data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
 
 
 # sends the get request to a directory server
-# circ.streamData(2, service_descriptor_data)
-# data = recvCell(ssl_sock)
-# print data#.encode('hex')
-# data = circ.recievedStreamData(data['pl'])
-
-# print data['pl']
+circ.streamData(2, service_descriptor_data)
+data = recvCell(ssl_sock)
+print data#.encode('hex')
+data = circ.recievedStreamData(data['pl'])
+print data['pl']
 
 
 # rendezvous_point = hop_list[(len(hop_list)-1)]
@@ -612,3 +611,4 @@ print circ.streamRecieved(connected['pl'])
 # print "extended decrypted ", extended.encode('hex')
 # #print type(extended)
 # hops.append(t2)
+                                                                                                                                    
