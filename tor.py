@@ -407,17 +407,17 @@ while True:
     text_file.write(data['pl'])
 text_file.close()
 
-rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = decode_recieved_document(file_to_save)
+rend_service_descriptor, RSA_pub_key, secret_id_part, message_decrypted,  signature = decode_recieved_document(file_to_save)
 
+print "message_decrypted\n\n", message_decrypted
 
-
-
-
-
-
-
-
-
+for l in message_decrypted.splitlines():
+        q = l.strip().split(" ")
+        if q[0] == 'introduction-point': #router descriptor
+            format = ['introduction-point']
+            data = dict(zip(format, q[1:]))
+            idt= data['introduction-point']
+            print idt
 
 
 
