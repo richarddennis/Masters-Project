@@ -23,6 +23,7 @@ import csv
 import pprint
 import sha
 import struct
+import itertools
 
 from hashlib import sha1
 from base64 import b32encode, b32decode
@@ -64,7 +65,7 @@ def connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list):
   for i in range(0,len(descriptor_id_list)):
     for j in range(0,3):
       a_elem = i*3 + j
-      web_addresses.append('http://'+ip_addresses[a_elem]+':'+str(dirport[a_elem])+'/tor/rendezvous2/'+descriptor_id_list[i])
+      web_addresses.append(ip_addresses[a_elem]+':'+str(dirport[a_elem]))
   return web_addresses
 
 def calc_rendezvous_point_data(rendezvous_point):
@@ -100,3 +101,45 @@ def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
   data += struct.pack ('!128s', str(X))
 
   return data
+
+def decode_recieved_document(file_to_open): 
+  rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
+
+  #rend service descriptor
+  with open(file_to_open, "r") as text_file:
+      for line in itertools.islice(text_file, 8, 9):
+          rend_service_descriptor.append(line)
+  text_file.close() 
+
+  #RSA pub key
+  with open(file_to_open, "r") as text_file:
+      for line in itertools.islice(text_file, 12, 15):
+          RSA_pub_key.append(line)
+  text_file.close() 
+
+  #Secret id
+  with open(file_to_open, "r") as text_file:
+      for line in itertools.islice(text_file, 16, 17):
+          secret_id_part.append(line)
+  text_file.close()  
+
+  #Message
+  with open(file_to_open, "r") as text_file:
+      for line in itertools.islice(text_file, 21, 60):
+          message.append(line)
+  text_file.close()
+
+  #Sig
+  with open(file_to_open, "r") as text_file:
+      for line in itertools.islice(text_file, 63, 66):
+          signature.append(line)
+  text_file.close()        
+                                                                  
+  rend_service_descriptor = str.split(''.join(rend_service_descriptor))[1]
+  RSA_pub_key = ''.join(RSA_pub_key)
+  secret_id_part = str.split(''.join(secret_id_part))[1]
+  message = ''.join(message)
+  signature = ''.join(signature)
+
+  return rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature
+
