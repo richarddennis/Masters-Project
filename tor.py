@@ -388,11 +388,10 @@ print web_addresses[1]
 
 #130.185.109.143:23
 
-circ.create_stream_hsdir(2, web_addresses[1])#port[1])
+circ.create_stream_hsdir(2, web_addresses[1])
 connected = recvCell(ssl_sock)
-
 # If the  address cannot be resolved, or a connection can't be established, the  exit node replies with a RELAY_END cell
-
+# Had an issue with the creation stream, beccause it is a directory a RELAY_BEGIN_DIR cell needed to be sent instead     
 print connected 
 print circ.streamRecieved(connected['pl'])
 
@@ -403,10 +402,20 @@ print "Stream successfully established to HSDir"
 
 # sends the get request to a directory server
 circ.streamData(2, service_descriptor_data)
-data = recvCell(ssl_sock)
-print data#.encode('hex')
-data = circ.recievedStreamData(data['pl'])
-print data['pl']
+# data = recvCell(ssl_sock)
+# print data#.encode('hex')
+# data = circ.recievedStreamData(data['pl'])
+# print data['pl']
+
+stream_data_dir = []
+while True:
+    relayData = recvCell(ssl_sock)
+    data = circ.recievedStreamData(relayData['pl'])
+    if (data['relayCmd']) == 3:
+        break
+    print data['pl']
+    stream_data_dir.append(data['pl'])
+print stream_data_dir
 
 
 # rendezvous_point = hop_list[(len(hop_list)-1)]
