@@ -419,23 +419,21 @@ message_decrypted_file = open(file_decrypted_to_save, "w")
 message_decrypted_file.write(message_decrypted)
 message_decrypted_file.close()
 
-introduction_point, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
+introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
 
+print introduction_point_decrypted[0]
 
 hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
-introduction_point_address = ip_addresses[0]+":"+ onion_port[0]
-print introduction_point_address
 
-hop_list.append(introduction_point_address) #first IP  
+introduction_point_nick = consensus.get_data_by_ip(ip_addresses[0])['nick']
+
+hop_list.append(introduction_point_nick) #first IP  
 firstHop = hop_list[0]                                          
 
 print hop_list #circuit we will be using
 
 circ = TorCircuit(ssl_sock, 3)
 create_circuits(hop_list[0], hop_list) 
-
-
-
 
 
 # PK_ID = descriptor_id_list[0]
