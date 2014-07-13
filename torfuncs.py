@@ -14,6 +14,7 @@ from Crypto.PublicKey import *
 import sys
 from Crypto.Util import Counter
 import consensus
+import re
 
 # cipher = AES CTR (ZERO IV START)
 # HASH = SHA1
@@ -138,24 +139,25 @@ def decodeCreatedCell(created, x):
     return TorHop(KH, Df, Db, Kf, Kb)
 
 def buildExtendPayload(on):                                                                             
+    match = re.search(r'(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?', on)
 
-    if on == r'\w+:\w+@)?)?(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?':
-           print "A real ip address"
+    if match:
+        print "A real ip address"
     else :
         r = consensus.getRouter(on)
         ip = map(int,r['ip'].split("."))
         port = int(r['orport'])    
             
 
-        extend = struct.pack("B" * len(ip), *ip)
-        extend += struct.pack("H", int(r['orport']))
+    extend = struct.pack("B" * len(ip), *ip)
+    extend += struct.pack("H", int(r['orport']))
 
 
-        x, pl_To_Next = remoteKeyX(on) #made into function much better than repeating code
-        #creates the payload to the next hop
+    x, pl_To_Next = remoteKeyX(on) #made into function much better than repeating code
+       #creates the payload to the next hop
         #pl_To_Next = hybridEncrypt(remoteKey, X)
-        extend += pl_To_Next
-        extend += r['identity']
+    extend += pl_To_Next
+    extend += r['identity']
 
     return (x, extend)
     #return extend #, x #, ip, port    
