@@ -143,6 +143,12 @@ def buildExtendPayload(on):
 
     if match:
         print "A real ip address"
+        ip, port = on.split(":")
+        print ip
+        ip = map(int,ip.split("."))
+        print ip
+        print type(ip)
+        print port
     else :
         r = consensus.getRouter(on)
         ip = map(int,r['ip'].split("."))
