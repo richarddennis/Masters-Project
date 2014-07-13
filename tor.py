@@ -411,34 +411,15 @@ rend_service_descriptor, RSA_pub_key, secret_id_part, message_decrypted,  signat
 
 print "message_decrypted\n\n", message_decrypted
 
-for l in message_decrypted.splitlines():
-        q = l.strip().split(" ")
-        if q[0] == 'introduction-point': #router descriptor
-            format = ['introduction-point']
-            data = dict(zip(format, q[1:]))
-            idt= data['introduction-point']
-            print idt
+#saves  decrypted to a text file
+file_decrypted_to_save = descriptor_id_list[1]+"_decrypted.txt"
+message_decrypted_file = open(file_decrypted_to_save, "w")
+message_decrypted_file.write(message_decrypted)
+message_decrypted_file.close()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+extract_data_from_file(file_decrypted_to_save)
 
 
 
@@ -456,7 +437,7 @@ for l in message_decrypted.splitlines():
  
 
 
-
+                                                                    
 
 
 
