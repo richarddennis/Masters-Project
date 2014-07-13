@@ -329,7 +329,7 @@ print stream_data
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
 print "Retriving hidden service descriptor"
-onion_Add = "kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
+onion_Add = "3g2upl4pq6kufc4m"#"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
 
 responsible_HSDir_list = []
 descriptor_id_list = []
@@ -362,6 +362,8 @@ service_descriptor_data = "GET /tor/rendezvous2/"+ descriptor_id_list[0] +" HTTP
 #"GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
 print "service_descriptor_data to send", service_descriptor_data
 
+rendezvous_point = hops_in_circ[(len(hops_in_circ)-1)]
+print "rendezvous_point", rendezvous_point
 rendezvous_cookie = circ.rendezvous_point_payload()
 
 circ.establish_rendezvous_point(1, rendezvous_cookie)
@@ -372,7 +374,7 @@ print data
                                                                                                                                                                          
                                                                                                                                     
 hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
-hop_list.append(nickname[1]) #first IP  
+hop_list.append(nickname[0]) #first IP  
 firstHop = hop_list[0]                                          
 
 print hop_list #circuit we will be using
@@ -380,9 +382,9 @@ print hop_list #circuit we will be using
 circ = TorCircuit(ssl_sock, 2)
 create_circuits(hop_list[0], hop_list) 
 
-print web_addresses[1]
+print web_addresses[0]
 
-circ.create_stream_hsdir(2, web_addresses[1])
+circ.create_stream_hsdir(2, web_addresses[0])
 connected = recvCell(ssl_sock)
 # If the  address cannot be resolved, or a connection can't be established, the  exit node replies with a RELAY_END cell
 # Had an issue with the creation stream, beccause it is a directory a RELAY_BEGIN_DIR cell needed to be sent instead     
@@ -394,7 +396,7 @@ print "Stream successfully established to HSDir"
 # sends the get request to a directory server
 circ.streamData(2, service_descriptor_data)
 
-file_to_save = descriptor_id_list[1]+".txt"
+file_to_save = descriptor_id_list[0]+".txt"
 
 text_file = open(file_to_save, "w") # creates a file to write the data recieved from the stream, done ths so always got a copy, saves format etc
 
@@ -417,10 +419,7 @@ message_decrypted_file = open(file_decrypted_to_save, "w")
 message_decrypted_file.write(message_decrypted)
 message_decrypted_file.close()
 
-
-
-extract_data_from_file(file_decrypted_to_save)
-
+introduction_point, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
 
 
 
@@ -428,7 +427,9 @@ extract_data_from_file(file_decrypted_to_save)
 
 
 
-# rendezvous_point = hop_list[(len(hop_list)-1)]
+
+
+
 
 # PK_ID = descriptor_id_list[0]
 # rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
