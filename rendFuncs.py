@@ -174,7 +174,7 @@ def convert_msg_to_dict_regex(message):
   return results
 
 def extract_data_from_file(decrypted_file):  
-  introduction_point, ip_addresses, onion_port, onion_key, service_key = [], [], [], [], []
+  introduction_point, ip_addresses, onion_port, ok, sk, onion_key_decrypted, service_key_decrypted = [], [], [], [], [], [], []
 
   with open(decrypted_file, "r") as text_file:
     while len(introduction_point) < 3:
@@ -192,13 +192,27 @@ def extract_data_from_file(decrypted_file):
       for line in itertools.islice(text_file, 2, 15, 32):
            onion_port.append(str.split(''.join(line))[1]) 
 
-  # with open(decrypted_file, "r") as text_file:
-  #   while len(onion_key) < 3:
-  #     for line in itertools.islice(text_file, 5, 15, 4):
-  #          onion_key.append(line)#str.split(''.join(line))[1]) 
   j = 5
-  while len(onion_key) < 9:
+  while len(ok) < 9:
     for i,line in enumerate(open(decrypted_file, "r")):
         if i >= j and i < j+3 :
-            onion_key.append(str.split(''.join(line))[0]) 
-    j = j + 15        
+            ok.append(str.split(''.join(line))[0]) 
+    j = j + 15 
+
+  l = 5
+  while len(sk) < 9:
+    for i,line in enumerate(open(decrypted_file, "r")):
+        if i >= l and i < l+3 :
+            sk.append(str.split(''.join(line))[0]) 
+    l = l + 15 
+
+  onion_key = ([i+j+k for i,j,k in zip(ok[::3], ok[1::3], ok[2::3])])
+  service_key = [i+j+k for i,j,k in zip(sk[::3], sk[1::3], sk[2::3])]                                                                     
+
+  for i in onion_key:
+    onion_key_decrypted.append(base64.b64decode(i))
+
+  for i in service_key:
+    service_key_decrypted.append(base64.b64decode(i))
+
+  return  introduction_point, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
