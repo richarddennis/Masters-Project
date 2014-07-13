@@ -105,34 +105,15 @@ def hybridEncrypt(rsa, m):
         return rsapart + sympart
 
 def remoteKeyX (on):
-    # r = consensus.getRouter("orion")
-    # print "r (orion router): ", r
-
-    # x = numunpack(os.urandom(DH_SEC_LEN))
-
-    # #calculates Big X (our public key)
-    # X = pow(DH_G,x,DH_P)
-    # X = numpack(X,DH_LEN)
-    # print X
-
-    # router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
-    # router_onion_key = consensus.getRouterOnionKey(router_descriptor)
-    # print router_onion_key
-
-    # remoteKey = RSA.importKey(router_onion_key)
-    #creates the payload to the first hop
-
     r = consensus.getRouter(on)
     x = numunpack(os.urandom(DH_SEC_LEN))
-
     X = pow(DH_G,x,DH_P)
     X = numpack(X,DH_LEN)
-
     router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
     router_onion_key = consensus.getRouterOnionKey(router_descriptor)
 
     remoteKey = RSA.importKey(router_onion_key)
-    remoteKey = RSA.importKey(router_onion_key)
+    #remoteKey = RSA.importKey(router_onion_key)
     
     payload = hybridEncrypt(remoteKey, X)
     return (x, payload)
@@ -156,20 +137,25 @@ def decodeCreatedCell(created, x):
     #return KH, Df, Db, Kf, Kb    
     return TorHop(KH, Df, Db, Kf, Kb)
 
-def buildExtendPayload(on):
+def buildExtendPayload(on):                                                                             
 
-    r = consensus.getRouter(on)
-    ip = map(int,r['ip'].split("."))
-    port = int(r['orport'])
-    extend = struct.pack("B" * len(ip), *ip)
-    extend += struct.pack("H", int(r['orport']))
+    if on == r'\w+:\w+@)?)?(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?':
+           print "A real ip address"
+    else :
+        r = consensus.getRouter(on)
+        ip = map(int,r['ip'].split("."))
+        port = int(r['orport'])    
+            
+
+        extend = struct.pack("B" * len(ip), *ip)
+        extend += struct.pack("H", int(r['orport']))
 
 
-    x, pl_To_Next = remoteKeyX(on) #made into function much better than repeating code
-    #creates the payload to the next hop
-    #pl_To_Next = hybridEncrypt(remoteKey, X)
-    extend += pl_To_Next
-    extend += r['identity']
+        x, pl_To_Next = remoteKeyX(on) #made into function much better than repeating code
+        #creates the payload to the next hop
+        #pl_To_Next = hybridEncrypt(remoteKey, X)
+        extend += pl_To_Next
+        extend += r['identity']
 
     return (x, extend)
     #return extend #, x #, ip, port    
