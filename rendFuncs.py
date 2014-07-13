@@ -174,7 +174,7 @@ def convert_msg_to_dict_regex(message):
   return results
 
 def extract_data_from_file(decrypted_file):  
-  introduction_point, ip_addresses, onion_port, ok, sk, onion_key_decrypted, service_key_decrypted = [], [], [], [], [], [], []
+  introduction_point, ip_addresses, onion_port, ok, sk, onion_key_decrypted, service_key_decrypted, introduction_point_decrypted = [], [], [], [], [], [], [], []
 
   with open(decrypted_file, "r") as text_file:
     while len(introduction_point) < 3:
@@ -215,4 +215,16 @@ def extract_data_from_file(decrypted_file):
   for i in service_key:
     service_key_decrypted.append(base64.b64decode(i))
 
-  return  introduction_point, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
+
+  #b32decode(introduction_point[0], 1)
+
+  #base64.b32decode(introduction_point[0], 1)
+  # d = sha1()
+  # d.update(introduction_point[0])
+  # d = d.digest()
+  # d =  b32encode(d).lower()
+
+  for i in introduction_point:
+    introduction_point_decrypted.append(base64.b64decode(i))
+    
+  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
