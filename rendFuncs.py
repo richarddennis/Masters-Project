@@ -24,6 +24,8 @@ import pprint
 import sha
 import struct
 import itertools
+import re
+
 
 from hashlib import sha1
 from base64 import b32encode, b32decode
@@ -136,10 +138,67 @@ def decode_recieved_document(file_to_open):
   text_file.close()        
                                                                   
   rend_service_descriptor = str.split(''.join(rend_service_descriptor))[1]
+  #RSA_pub_key = base64.standard_b64decode(''.join(RSA_pub_key))
   RSA_pub_key = ''.join(RSA_pub_key)
   secret_id_part = str.split(''.join(secret_id_part))[1]
-  message = ''.join(message)
+  message =  base64.b64decode(''.join(message))
   signature = ''.join(signature)
 
-  return rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature
+  return rend_service_descriptor, RSA_pub_key, secret_id_part, message, signature
 
+def convert_msg_to_dict(message):
+  for l in message.splitlines():
+            q = l.strip().split(" ")
+            if q[0] == 'introduction-point': #router descriptor
+                format = ['introduction-point']
+                data = dict(zip(format, q[1:]))
+                idt= data['introduction-point']
+                print idt
+            if q[0] == 'ip-address':
+                format = ['ip-address']
+                data = dict(zip(format, q[1:]))
+                idt= data['ip-address']
+                print idt
+            if q[0] == 'onion-port':
+                format = ['onion-port']
+                data = dict(zip(format, q[1:]))
+                idt= data['onion-port']
+                print idt
+
+def convert_msg_to_dict_regex(message):
+  pat=re.compile(r"onion-key\s?-----BEGIN RSA PUBLIC KEY-----\s?(.*?)\s?-----END RSA PUBLIC KEY-----", re.DOTALL)
+  result = {'onion-key': key for key in pat.findall(message)}
+  pat = re.compile(r"([\w-]+)\s-----BEGIN RSA PUBLIC KEY-----\s(.*?)\s-----END RSA PUBLIC KEY-----", re.DOTALL)
+  result = dict(pat.findall(message))
+  results = [dict(pair) for pair in zip(*[iter(pat.findall(message))]*2)]
+  return results
+
+def extract_data_from_file(decrypted_file):  
+  introduction_point, ip_addresses, onion_port, onion_key, service_key = [], [], [], [], []
+
+  with open(decrypted_file, "r") as text_file:
+    while len(introduction_point) < 3:
+      for line in itertools.islice(text_file, 0, 15, 30):#i, i+1):# i+2):
+           introduction_point.append(str.split(''.join(line))[1])
+
+  print introduction_point                                    
+  with open(decrypted_file, "r") as text_file:
+    while len(ip_addresses) < 3:
+      for line in itertools.islice(text_file, 1, 15, 31):
+           ip_addresses.append(str.split(''.join(line))[1])
+
+  with open(decrypted_file, "r") as text_file:
+    while len(onion_port) < 3:
+      for line in itertools.islice(text_file, 2, 15, 32):
+           onion_port.append(str.split(''.join(line))[1]) 
+
+  # with open(decrypted_file, "r") as text_file:
+  #   while len(onion_key) < 3:
+  #     for line in itertools.islice(text_file, 5, 15, 4):
+  #          onion_key.append(line)#str.split(''.join(line))[1]) 
+  j = 5
+  while len(onion_key) < 9:
+    for i,line in enumerate(open(decrypted_file, "r")):
+        if i >= j and i < j+3 :
+            onion_key.append(str.split(''.join(line))[0]) 
+    j = j + 15        
