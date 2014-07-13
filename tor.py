@@ -422,19 +422,26 @@ message_decrypted_file.close()
 introduction_point, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
 
 
+hop_list = ["orion", "WorldWithPrivacyNY1", "TheVillage"] #"TorLand1"
+introduction_point_address = ip_addresses[0]+":"+ onion_port[0]
+print introduction_point_address
 
+hop_list.append(introduction_point_address) #first IP  
+firstHop = hop_list[0]                                          
 
+print hop_list #circuit we will be using
 
-
+circ = TorCircuit(ssl_sock, 3)
+create_circuits(hop_list[0], hop_list) 
 
 
 
 
 
 # PK_ID = descriptor_id_list[0]
-# rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
+rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
 
-# circ.a_op_to_induction_point(2, PK_ID, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
+# circ.a_op_to_induction_point(2, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
  
 
 
