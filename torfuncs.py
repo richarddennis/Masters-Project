@@ -46,6 +46,16 @@ def buildCell(circid, command, payload):
 
 
 class TorHop:
+
+    # def __str__(self):    
+    #     return 'hop #' %  self.hop
+
+    # def __repr__(self):
+    #     return 'hop #' %  self.hop
+
+    # def __repr__(self):
+    #     return '<TorHop(%d)>' % self.hop
+
     def __init__(self, KH, Df, Db, Kf, Kb):
         self.KH = KH
         self.Df = Df
@@ -227,3 +237,4 @@ def decodeRelayCell(cell):
     celldata['pl'] = cell[11:celldata['length']+11]
     return celldata
 
+                                                            
