@@ -146,7 +146,6 @@ def getIndex(str,arr):
 def decode_recieved_document(file_to_open): 
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
 
-
   lines = open(file_to_open, "rt").readlines()  
 
   # Gets the lines dynamically, although the doc should be of a standard size this protects againt any differences
@@ -193,10 +192,10 @@ def decode_recieved_document(file_to_open):
   with open(file_to_open, "r") as text_file:
       for line in itertools.islice(text_file, sig_line, sig_line_end):
           signature.append(line)
-  text_file.close()        
-                                                                  
+  text_file.close()   
+
+  #Strips out to ensure only the data is saved                                                                
   rend_service_descriptor = str.split(''.join(rend_service_descriptor))[1]
-  #RSA_pub_key = base64.standard_b64decode(''.join(RSA_pub_key))
   RSA_pub_key = ''.join(RSA_pub_key)
   secret_id_part = str.split(''.join(secret_id_part))[1]
   message =  base64.b64decode(''.join(message))
@@ -234,6 +233,14 @@ def convert_msg_to_dict_regex(message):
 def extract_data_from_file(decrypted_file):  
   introduction_point, ip_addresses, onion_port, ok, sk, onion_key_decrypted, service_key_decrypted, introduction_point_decrypted = [], [], [], [], [], [], [], []
 
+  lines = open(decrypted_file, "rt").readlines()  
+
+  rsa_line = getIndex("-----BEGIN RSA PUBLIC KEY-----", lines)+1
+  rsa_line_end = getIndex("-----END RSA PUBLIC KEY-----", lines)
+
+  sk_line = getIndex("service-key", lines)+2
+
+
   with open(decrypted_file, "r") as text_file:
     while len(introduction_point) < 3:
       for line in itertools.islice(text_file, 0, 15, 30):#i, i+1):# i+2):
@@ -250,14 +257,16 @@ def extract_data_from_file(decrypted_file):
       for line in itertools.islice(text_file, 2, 15, 32):
            onion_port.append(str.split(''.join(line))[1]) 
 
-  j = 5
+  #Get all data contained within the RSA section
+  j = rsa_line
   while len(ok) < 9:
     for i,line in enumerate(open(decrypted_file, "r")):
         if i >= j and i < j+3 :
             ok.append(str.split(''.join(line))[0]) 
     j = j + 15 
 
-  l = 5
+  #Get all data contained within the Service key section
+  l = sk_line
   while len(sk) < 9:
     for i,line in enumerate(open(decrypted_file, "r")):
         if i >= l and i < l+3 :
@@ -267,6 +276,7 @@ def extract_data_from_file(decrypted_file):
   onion_key = ([i+j+k for i,j,k in zip(ok[::3], ok[1::3], ok[2::3])])
   service_key = [i+j+k for i,j,k in zip(sk[::3], sk[1::3], sk[2::3])]                                                                     
 
+  #Decrypts the data
   for i in onion_key:
     onion_key_decrypted.append(base64.b64decode(i))
 
