@@ -104,6 +104,39 @@ def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
 
   return data
 
+
+def a_op_to_induction_point_v3(rp_address, rp_or_port, rp_id, rp_ok, rc):
+ # 638           VER    Version byte: set to 3.        [1 octet]
+ # 639           AUTHT  The auth type that is used     [1 octet]
+ # 640           If AUTHT != [00]:
+ # 641               AUTHL  Length of auth data           [2 octets]
+ # 642               AUTHD  Auth data                     [variable]
+ # 643           TS     A timestamp                   [4 octets]
+ # 644           IP     Rendezvous point's address    [4 octets]
+ # 645           PORT   Rendezvous point's OR port    [2 octets]
+ # 646           ID     Rendezvous point identity ID [20 octets]
+ # 647           KLEN   Length of onion key           [2 octets]
+ # 648           KEY    Rendezvous point onion key [KLEN octets]
+ # 649           RC     Rendezvous cookie            [20 octets]
+ # 650           g^x    Diffie-Hellman data, part 1 [128 octets]
+
+  data = struct.pack ('!1s', str(3))
+  data += struct.pack ('!1s', "[00]")
+  data += struct.pack ('!4s', time.time())  
+  data += struct.pack ('!4s', rp_address)#.split('.'))  
+  data += struct.pack ('!2s', rp_or_port)
+  data += struct.pack ('!20s', rp_id)
+  data += struct.pack ('!2s', str(len(rp_ok)))
+  data += (struct.pack ('!i', len(rp_ok)) + rp_ok)
+  data += struct.pack ('!20s', rc)
+
+  x = numunpack(os.urandom(DH_SEC_LEN))
+  X = pow(DH_G,x,DH_P)
+  data += struct.pack ('!128s', str(X))
+
+  return data
+
+
 def decode_recieved_document(file_to_open): 
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
 
@@ -215,16 +248,7 @@ def extract_data_from_file(decrypted_file):
   for i in service_key:
     service_key_decrypted.append(base64.b64decode(i))
 
-
-  #b32decode(introduction_point[0], 1)
-
-  #base64.b32decode(introduction_point[0], 1)
-  # d = sha1()
-  # d.update(introduction_point[0])
-  # d = d.digest()
-  # d =  b32encode(d).lower()
-
   for i in introduction_point:
     introduction_point_decrypted.append(base64.b64decode(i))
     
-  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
+  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted                                
