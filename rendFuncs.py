@@ -142,47 +142,56 @@ def getIndex(str,arr):
                      return i
      return -1
 
-def decode_recieved_document_nt_line(file_to_open):
-  rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
-    
-
-  lines = open(file_to_open, "rt").readlines()  
-
-  print lines
-  return ""
-
-
 
 def decode_recieved_document(file_to_open): 
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
 
+
+  lines = open(file_to_open, "rt").readlines()  
+
+  # Gets the lines dynamically, although the doc should be of a standard size this protects againt any differences
+  rs_line = getIndex("rendezvous-service-descriptor", lines)
+  rs_line_end = getIndex("version", lines)
+
+  rsa_line = getIndex("-----BEGIN RSA PUBLIC KEY-----", lines)+1
+  rsa_line_end = getIndex("-----END RSA PUBLIC KEY-----", lines)
+
+  s_id_line = getIndex("secret-id-part", lines)
+  s_id_line_end = getIndex("publication-time", lines)
+
+  msg_line = getIndex("-----BEGIN MESSAGE-----", lines)+1
+  msg_line_end = getIndex("-----END MESSAGE-----", lines)
+
+  sig_line = getIndex("-----BEGIN SIGNATURE-----", lines)+1
+  sig_line_end = getIndex("-----END SIGNATURE-----", lines)
+
   #rend service descriptor
   with open(file_to_open, "r") as text_file:
-      for line in itertools.islice(text_file, 8, 9):
+      for line in itertools.islice(text_file, rs_line, rs_line_end):
           rend_service_descriptor.append(line)
   text_file.close() 
 
   #RSA pub key
   with open(file_to_open, "r") as text_file:
-      for line in itertools.islice(text_file, 12, 15):
+      for line in itertools.islice(text_file, rsa_line, rsa_line_end):
           RSA_pub_key.append(line)
   text_file.close() 
 
   #Secret id
   with open(file_to_open, "r") as text_file:
-      for line in itertools.islice(text_file, 16, 17):
+      for line in itertools.islice(text_file, s_id_line, s_id_line_end):
           secret_id_part.append(line)
   text_file.close()  
 
   #Message
   with open(file_to_open, "r") as text_file:
-      for line in itertools.islice(text_file, 21, 60):
+      for line in itertools.islice(text_file, msg_line, msg_line_end):
           message.append(line)
   text_file.close()
 
   #Sig
   with open(file_to_open, "r") as text_file:
-      for line in itertools.islice(text_file, 63, 66):
+      for line in itertools.islice(text_file, sig_line, sig_line_end):
           signature.append(line)
   text_file.close()        
                                                                   
