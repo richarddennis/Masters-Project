@@ -136,6 +136,22 @@ def a_op_to_induction_point_v3(rp_address, rp_or_port, rp_id, rp_ok, rc):
 
   return data
 
+def getIndex(str,arr):
+     for i in range(len(arr)):
+             if str in arr[i]:
+                     return i
+     return -1
+
+def decode_recieved_document_nt_line(file_to_open):
+  rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
+    
+
+  lines = open(file_to_open, "rt").readlines()  
+
+  print lines
+  return ""
+
+
 
 def decode_recieved_document(file_to_open): 
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
