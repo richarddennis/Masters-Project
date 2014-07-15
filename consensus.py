@@ -62,16 +62,16 @@ def get_HSDir_Flag():
            HSDirList.append(r) # add to the list
    return HSDirList # return the list
 
-# def getHSDirFlag():
-#    for r in router.itervalues():
-#         if 'HSDir' in r['flags']:
-#             return r
-#    return None
-
+#Fetches the routers identity from its hash
 def get_router_by_hash(identity):
     return router[identity]
 
-
+#Fetches the routers info from its ip
+def get_data_by_ip(ip):
+    for r in router.itervalues():
+        if r['ip'] == ip:
+            return r
+    return None
 # Fetch text router descriptor containing keys
 def getRouterDescriptor(identityhash):
     if router[identityhash.decode('hex')]:
@@ -87,11 +87,3 @@ def getRouterOnionKey(routerdesc):
         onionk += lns[okidx]
         okidx += 1
     return base64.b64decode(onionk)
-
-#gho = getRouter("gho")
-#rtdesc = getRouterDescriptor(gho['identityhash'])
-#okey = getRouterOnionKey(rtdesc)
-#from Crypto.PublicKey import RSA
-#print RSA.importKey(okey)
-#print getDoc("server/fp/"+gho['identityhash'])
-#pprint.pprint( router)
