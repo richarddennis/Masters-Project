@@ -365,13 +365,7 @@ for i in range(0, 2):
 
 print "responsible_HSDir_list", responsible_HSDir_list
 
-
-# Extracts the data here from the list generated above to connect to the web url to get the rendezvous2 data
-ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
-dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
-port =  [i.get('port') for j in responsible_HSDir_list for i in j]
-nickname = [i.get('nick') for j in responsible_HSDir_list for i in j]
-identity = [i.get('identity') for j in responsible_HSDir_list for i in j]
+ip_addresses, dirport, port, nickname, identity = extract_HSDir_data(responsible_HSDir_list)
 
 web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
