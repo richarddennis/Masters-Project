@@ -3,7 +3,7 @@ import binascii
 from collections import namedtuple
 import pprint
 import os
-from OpenSSL import crypto
+#from OpenSSL import crypto
 import time
 import ssl,socket,struct
 from binascii import hexlify
@@ -54,7 +54,7 @@ def find_responsible_HSDir(descriptor_id):
    orHashList = sorted(map(lambda x: x['identity'], HSDir_List))
    descriptor_position = bisect_left(orHashList, b32decode(descriptor_id,1)) #should be identiy list not HSDir_List #TODO - Add the other part of the list to it so it makes a circle
    for i in range(0,3):
-      responsible_HSDirs.append(orHashList[descriptor_position+i])  
+      responsible_HSDirs.append(orHashList[descriptor_position+i])
    return (map(lambda x: consensus.get_router_by_hash(x) ,responsible_HSDirs))
 
 def create_rendezvous_cookie():
@@ -80,7 +80,7 @@ def calc_rendezvous_point_data(rendezvous_point):
 
 
 
-def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
+def a_op_to_induction_point_v2(PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
 #  629           VER    Version byte: set to 2.        [1 octet]
 #  630           IP     Rendezvous point's address    [4 octets]
 #  631           PORT   Rendezvous point's OR port    [2 octets]
@@ -91,7 +91,7 @@ def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
 #  636           g^x    Diffie-Hellman data, part 1 [128 octets]
 
   data = struct.pack ('!1s', str(2))
-  data += struct.pack ('!4s', rp_address)#.split('.'))  
+  data += struct.pack ('!4s', rp_address)#.split('.'))
   data += struct.pack ('!2s', rp_or_port)
   data += struct.pack ('!20s', rp_id)
   data += struct.pack ('!2s', str(len(rp_ok)))
@@ -101,6 +101,8 @@ def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
   x = numunpack(os.urandom(DH_SEC_LEN))
   X = pow(DH_G,x,DH_P)
   data += struct.pack ('!128s', str(X))
+
+  # data = hybridEncrypt(PK_ID, data)
 
   return data
 
@@ -122,8 +124,8 @@ def a_op_to_induction_point_v3(rp_address, rp_or_port, rp_id, rp_ok, rc):
 
   data = struct.pack ('!1s', str(3))
   data += struct.pack ('!1s', "[00]")
-  data += struct.pack ('!4s', time.time())  
-  data += struct.pack ('!4s', rp_address)#.split('.'))  
+  data += struct.pack ('!4s', time.time())
+  data += struct.pack ('!4s', rp_address)#.split('.'))
   data += struct.pack ('!2s', rp_or_port)
   data += struct.pack ('!20s', rp_id)
   data += struct.pack ('!2s', str(len(rp_ok)))
@@ -152,10 +154,10 @@ def extract_HSDir_data(responsible_HSDir_list):
   return ip_addresses, dirport, port, nickname, identity
 
 
-def decode_recieved_document(file_to_open): 
+def decode_recieved_document(file_to_open):
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
 
-  lines = open(file_to_open, "rt").readlines()  
+  lines = open(file_to_open, "rt").readlines()
 
   # Gets the lines dynamically, although the doc should be of a standard size this protects againt any differences
   rs_line = getIndex("rendezvous-service-descriptor", lines)
@@ -177,19 +179,19 @@ def decode_recieved_document(file_to_open):
   with open(file_to_open, "r") as text_file:
       for line in itertools.islice(text_file, rs_line, rs_line_end):
           rend_service_descriptor.append(line)
-  text_file.close() 
+  text_file.close()
 
   #RSA pub key
   with open(file_to_open, "r") as text_file:
       for line in itertools.islice(text_file, rsa_line, rsa_line_end):
           RSA_pub_key.append(line)
-  text_file.close() 
+  text_file.close()
 
   #Secret id
   with open(file_to_open, "r") as text_file:
       for line in itertools.islice(text_file, s_id_line, s_id_line_end):
           secret_id_part.append(line)
-  text_file.close()  
+  text_file.close()
 
   #Message
   with open(file_to_open, "r") as text_file:
@@ -201,9 +203,9 @@ def decode_recieved_document(file_to_open):
   with open(file_to_open, "r") as text_file:
       for line in itertools.islice(text_file, sig_line, sig_line_end):
           signature.append(line)
-  text_file.close()   
+  text_file.close()
 
-  #Strips out to ensure only the data is saved                                                                
+  #Strips out to ensure only the data is saved
   rend_service_descriptor = str.split(''.join(rend_service_descriptor))[1]
   RSA_pub_key = ''.join(RSA_pub_key)
   secret_id_part = str.split(''.join(secret_id_part))[1]
@@ -239,51 +241,85 @@ def convert_msg_to_dict_regex(message):
   results = [dict(pair) for pair in zip(*[iter(pat.findall(message))]*2)]
   return results
 
-def extract_data_from_file(decrypted_file):  
+def extract_data_from_file(decrypted_file):
   introduction_point, ip_addresses, onion_port, ok, sk, onion_key_decrypted, service_key_decrypted, introduction_point_decrypted = [], [], [], [], [], [], [], []
 
-  lines = open(decrypted_file, "rt").readlines()  
+  lines = open(decrypted_file, "rt").readlines()
+
+  ip_line = getIndex("introduction-point", lines)
+  print ip_line
+  ip_add_line = getIndex("ip-address", lines)
+  port_line = getIndex("onion-port", lines)
+
 
   rsa_line = getIndex("-----BEGIN RSA PUBLIC KEY-----", lines)+1
   rsa_line_end = getIndex("-----END RSA PUBLIC KEY-----", lines)
 
   sk_line = getIndex("service-key", lines)+2
 
+  word_list=re.split('\s+',file(decrypted_file).read().lower())
 
-  with open(decrypted_file, "r") as text_file:
-    while len(introduction_point) < 3:
-      for line in itertools.islice(text_file, 0, 15, 30):#i, i+1):# i+2):
+  # Gets the number of times each is in the doc, have seen examples where anywhere between 1 and 4 are in each doc
+  no_of_ip = word_list.count('introduction-point')
+  # print no_of_ip
+  no_of_ip_add = word_list.count('ip-address')
+  print no_of_ip_add
+  no_of_ports = word_list.count('onion-port')
+
+
+  j = ip_line
+  while len(introduction_point) < no_of_ip:
+      # for line in itertools.islice(text_file, 0, 15, 30):#i, i+1):# i+2):
+      #      introduction_point.append(str.split(''.join(line))[1])
+    for i,line in enumerate(open(decrypted_file, "r")):
+        if i >= j and i < j+1:
            introduction_point.append(str.split(''.join(line))[1])
+    j = j + 15
+  print introduction_point
 
-  print introduction_point                                    
-  with open(decrypted_file, "r") as text_file:
-    while len(ip_addresses) < 3:
-      for line in itertools.islice(text_file, 1, 15, 31):
+
+  j = ip_add_line
+  while len(ip_addresses) < no_of_ip_add:
+      # for line in itertools.islice(text_file, 0, 15, 30):#i, i+1):# i+2):
+      #      introduction_point.append(str.split(''.join(line))[1])
+    for i,line in enumerate(open(decrypted_file, "r")):
+        if i >= j and i < j+1:
            ip_addresses.append(str.split(''.join(line))[1])
+    j = j + 15
 
-  with open(decrypted_file, "r") as text_file:
-    while len(onion_port) < 3:
-      for line in itertools.islice(text_file, 2, 15, 32):
-           onion_port.append(str.split(''.join(line))[1]) 
+  print ip_addresses
+
+
+  j = port_line                                                                                       
+  while len(onion_port) < no_of_ports:
+    for i,line in enumerate(open(decrypted_file, "r")):
+        if i >= j and i < j+1:
+           onion_port.append(str.split(''.join(line))[1])
+    j = j + 15
+  print onion_port
 
   #Get all data contained within the RSA section
   j = rsa_line
-  while len(ok) < 9:
+  while len(ok) < (no_of_ip*3):
     for i,line in enumerate(open(decrypted_file, "r")):
         if i >= j and i < j+3 :
-            ok.append(str.split(''.join(line))[0]) 
-    j = j + 15 
+            ok.append(str.split(''.join(line))[0])
+    j = j + 15
 
   #Get all data contained within the Service key section
   l = sk_line
-  while len(sk) < 9:
+  while len(sk) < (no_of_ip*3):
     for i,line in enumerate(open(decrypted_file, "r")):
         if i >= l and i < l+3 :
-            sk.append(str.split(''.join(line))[0]) 
-    l = l + 15 
+            sk.append(str.split(''.join(line))[0])
+    l = l + 15
 
-  onion_key = ([i+j+k for i,j,k in zip(ok[::3], ok[1::3], ok[2::3])])
-  service_key = [i+j+k for i,j,k in zip(sk[::3], sk[1::3], sk[2::3])]                                                                     
+  if no_of_ip == 2:
+    onion_key = ([i+j for i,j in zip(ok[::2], ok[1::2])])                                 
+    service_key = ([i+j for i,j in zip(sk[::2], sk[1::2])])
+  elif no_of_ip == 3:
+    onion_key = ([i+j+k for i,j,k in zip(ok[::3], ok[1::3], ok[2::3])])
+    service_key = ([i+j+k for i,j,k in zip(sk[::3], sk[1::3], sk[2::3])])
 
   #Decrypts the data
   for i in onion_key:
@@ -292,7 +328,9 @@ def extract_data_from_file(decrypted_file):
   for i in service_key:
     service_key_decrypted.append(base64.b64decode(i))
 
+  print introduction_point
+  
   for i in introduction_point:
     introduction_point_decrypted.append(base64.b64decode(i))
-    
-  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted                                
+
+  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
