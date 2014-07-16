@@ -142,6 +142,15 @@ def getIndex(str,arr):
                      return i
      return -1
 
+def extract_HSDir_data(responsible_HSDir_list):
+  # Extracts the data here from the list generated above to connect to the web url to get the rendezvous2 data
+  ip_addresses = [i.get('ip') for j in responsible_HSDir_list for i in j]
+  dirport =  [i.get('dirport') for j in responsible_HSDir_list for i in j]
+  port =  [i.get('port') for j in responsible_HSDir_list for i in j]
+  nickname = [i.get('nick') for j in responsible_HSDir_list for i in j]
+  identity = [i.get('identity') for j in responsible_HSDir_list for i in j]
+  return ip_addresses, dirport, port, nickname, identity
+
 
 def decode_recieved_document(file_to_open): 
   rend_service_descriptor, RSA_pub_key, secret_id_part, message,  signature = [], [], [], [], []
