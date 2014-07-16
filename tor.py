@@ -278,16 +278,16 @@ class TorCircuit():
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
 
-def create_circuits(circ, first_hop, hops_in_circ):
-    circ.toFirst(first_hop)
+def create_circuits(circ_name, first_hop, hops_in_circ):
+    circ_name.toFirst(first_hop)
     created = recvCell(ssl_sock)
-    circ.handleCreated(created)
+    circ_name.handleCreated(created)
     count=0 
     for hop in hops_in_circ[1:len(hops_in_circ)]:
         print "hop :", hop
-        circ.extend(0, hop)
+        circ_name.extend(0, hop)
         extended = recvCell(ssl_sock)
-        circ.extendedRecieved(extended['pl'])
+        circ_name.extendedRecieved(extended['pl'])
         count = count + 1
         print "success, hop ",count
 
@@ -351,7 +351,7 @@ print stream_data
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
 print "Retriving hidden service descriptor"
-onion_Add = "3g2upl4pq6kufc4m"          #"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
+onion_Add = "kpvz7ki2v5agwt35"          #"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
 
 responsible_HSDir_list = []
 descriptor_id_list = []
@@ -377,11 +377,9 @@ web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
 print web_addresses
 
-#GET /tor/rendezvous2/<descriptor-id> HTTP/1.0
-# Host: <HSDir-IP>:<HSDir-port>
 
-n = 0 # Change this value to select a different router to connect to
-i = 0 # change between 0 - 1                             
+n = 1 # Change this value to select a different router to connect to
+i = 0 # change between 0 - 1   releated to descriptor list                          
 service_descriptor_data = "GET /tor/rendezvous2/"+ descriptor_id_list[i] +" HTTP/1.1\r\nHost: "+web_addresses[n]+"\r\n\r\n"
 
 #"GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
@@ -441,6 +439,7 @@ while True:
     text_file.write(data['pl'])
 text_file.close()
 
+#Retrieves data from the document recieved
 rend_service_descriptor, RSA_pub_key, secret_id_part, message_decrypted,  signature = decode_recieved_document(file_to_save)
 
 print "message_decrypted\n\n", message_decrypted
@@ -451,30 +450,29 @@ message_decrypted_file = open(file_decrypted_to_save, "w")
 message_decrypted_file.write(message_decrypted)
 message_decrypted_file.close()
 
+#Retrieves data from the decrypted version of the document recieved
 introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
 
-print introduction_point_decrypted[0]
+print introduction_point_decrypted[0] #One of the chosen Introduction points
 
-introduction_point_nick = consensus.get_data_by_ip(ip_addresses[0])['nick']
+introduction_point_nick = consensus.get_data_by_ip(ip_addresses[0])['nick'] #Retrieves the nickname based on ip address
 
 hops_in_circ = ["orion", "WorldWithPrivacyNY1", "TheVillage"]
-hops_in_circ.append(introduction_point_nick) #first IP  
+hops_in_circ.append(introduction_point_nick) #first IP  added onto the end of the circ
 print "hops_in_circ : "  ,hops_in_circ #circuit we will be using
 print  "No of hops in circ : ", len(hops_in_circ)
 firstHop = hops_in_circ[0]
 hops_to_extend_ip = hops_in_circ[0:]
 
+#Create new circuit to send data to the chosen I.P
 circ_to_ip= TorCircuit(ssl_sock, 3)
 create_circuits(circ_to_ip, firstHop, hops_to_extend_ip) 
 
 print "Circ to introduction point created successfully"
 # PK_ID = descriptor_id_list[0]
 rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
-hash_sk = SHA.new()
-hash_sk.update(service_key_decrypted[0])
-hash_sk = hash_sk.digest()
-print hash_sk
-print len(hash_sk)
+
+hash_sk = hash_item(service_key_decrypted[0])
 
 circ_to_ip.a_op_to_induction_point(3, hash_sk, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
  
