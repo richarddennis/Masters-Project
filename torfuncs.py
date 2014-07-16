@@ -100,6 +100,13 @@ def numpack(n, nbytes):
 def numunpack(s):
     return int(s.encode("hex"),16)
 
+#Hashes an input with SHA1
+def hash_item(i):
+    hash_value = SHA.new()
+    hash_value.update(i)
+    hash_value = hash_value.digest()
+    return hash_value    
+
 #according to tor spec, performs hybrid encrypt for create/etc
 def hybridEncrypt(rsa, m):
     cipher = PKCS1_OAEP.new(rsa)
