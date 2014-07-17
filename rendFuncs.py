@@ -25,10 +25,11 @@ import sha
 import struct
 import itertools
 import re
-
+from Crypto.PublicKey import RSA
+from Crypto.Util import asn1
 
 from hashlib import sha1
-from base64 import b32encode, b32decode
+from base64 import b32encode, b32decode, b64decode
 from random import randint
 from bisect import bisect_left
 
@@ -80,7 +81,7 @@ def calc_rendezvous_point_data(rendezvous_point):
 
 
 
-def a_op_to_induction_point_v2(PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
+def a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc):
 #  629           VER    Version byte: set to 2.        [1 octet]
 #  630           IP     Rendezvous point's address    [4 octets]
 #  631           PORT   Rendezvous point's OR port    [2 octets]
@@ -100,10 +101,8 @@ def a_op_to_induction_point_v2(PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
 
   x = numunpack(os.urandom(DH_SEC_LEN))
   X = pow(DH_G,x,DH_P)
+
   data += struct.pack ('!128s', str(X))
-
-  # data = hybridEncrypt(PK_ID, data)
-
   return data
 
 
@@ -124,7 +123,7 @@ def a_op_to_induction_point_v3(rp_address, rp_or_port, rp_id, rp_ok, rc):
 
   data = struct.pack ('!1s', str(3))
   data += struct.pack ('!1s', "[00]")
-  data += struct.pack ('!4s', time.time())
+  data += struct.pack ('!4s', str(time.time()))
   data += struct.pack ('!4s', rp_address)#.split('.'))
   data += struct.pack ('!2s', rp_or_port)
   data += struct.pack ('!20s', rp_id)
@@ -207,7 +206,7 @@ def decode_recieved_document(file_to_open):
 
   #Strips out to ensure only the data is saved
   rend_service_descriptor = str.split(''.join(rend_service_descriptor))[1]
-  RSA_pub_key = ''.join(RSA_pub_key)
+  RSA_pub_key =  base64.b64decode(''.join(RSA_pub_key))
   secret_id_part = str.split(''.join(secret_id_part))[1]
   message =  base64.b64decode(''.join(message))
   signature = ''.join(signature)
@@ -333,4 +332,4 @@ def extract_data_from_file(decrypted_file):
   for i in introduction_point:
     introduction_point_decrypted.append(base64.b64decode(i))
 
-  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted
+  return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted, service_key
