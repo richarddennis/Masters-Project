@@ -1,10 +1,11 @@
+
 from StringIO import StringIO
 #import consensus
 import binascii
 from collections import namedtuple
 import pprint
 import os
-from OpenSSL import crypto
+#from OpenSSL import crypto
 import time
 import ssl,socket,struct
 from binascii import hexlify
@@ -42,12 +43,12 @@ def buildCell(circid, command, payload):
                 payload = padding(payload)
                # payload = ''.join(payload)
         cell += payload
-        return cell    
+        return cell
 
 
 class TorHop:
 
-    # def __str__(self):    
+    # def __str__(self):
     #     return 'hop #' %  self.hop
 
     # def __repr__(self):
@@ -86,7 +87,7 @@ def kdf_tor(K0, length):
         K += SHA.new(K0 + chr(i)).digest()
         i+=1
     return K
-    
+
 #packs a number as big endian into nbytes
 #e.g. struct but specify field size
 def numpack(n, nbytes):
@@ -105,10 +106,12 @@ def hash_item(i):
     hash_value = SHA.new()
     hash_value.update(i)
     hash_value = hash_value.digest()
-    return hash_value    
+    return hash_value
 
 #according to tor spec, performs hybrid encrypt for create/etc
 def hybridEncrypt(rsa, m):
+    print "RSA type :", type(rsa) #intance
+    print "Message type: ", type(m)  #Str
     cipher = PKCS1_OAEP.new(rsa)
     if len(m) < (PK_ENC_LEN - PK_PAD_LEN):
         return cipher.encrypt(m)
@@ -129,10 +132,18 @@ def remoteKeyX (on):
     X = numpack(X,DH_LEN)
     router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
     router_onion_key = consensus.getRouterOnionKey(router_descriptor)
-
+    # print "router_onion_key type", type (router_onion_key)
+    # print "router_onion_key len", len(router_onion_key)
+    # print "router_onion_key", router_onion_key.encode('hex')
     remoteKey = RSA.importKey(router_onion_key)
     #remoteKey = RSA.importKey(router_onion_key)
-    
+    # print "router_onion_key", router_onion_key
+    # print "router_onion_key type",type(router_onion_key)
+    # print "router_onion_key len",len(router_onion_key)
+
+    # print "remoteKey",remoteKey
+    # print "remoteKey type",type (remoteKey)
+
     payload = hybridEncrypt(remoteKey, X)
     return (x, payload)
 
@@ -146,7 +157,7 @@ def remoteKeyX_with_no_on (on):
 
     remoteKey = RSA.importKey(router_onion_key)
     #remoteKey = RSA.importKey(router_onion_key)
-    
+
     payload = hybridEncrypt(remoteKey, X)
     return (x, payload)
 
@@ -165,10 +176,10 @@ def decodeCreatedCell(created, x):
     (KH, Df, Db) = [KK.read(HASH_LEN) for i in range(3)]
     (Kf, Kb) = [KK.read(KEY_LEN) for i in range(2)]
     assert DerivativeKeyData == KH
-    #return KH, Df, Db, Kf, Kb    
+    #return KH, Df, Db, Kf, Kb
     return TorHop(KH, Df, Db, Kf, Kb)
 
-def buildExtendPayload(on):                                                                             
+def buildExtendPayload(on):
     match = re.search(r'(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?', on)
     if match:
         ip, port,identity = on.split(":")
@@ -183,16 +194,16 @@ def buildExtendPayload(on):
         extend += struct.pack("H", port)
         d = consensus.get_data_by_ip(ip)
 
-        x, pl_To_Next = remoteKeyX(d['identityhash']) 
+        x, pl_To_Next = remoteKeyX(d['identityhash'])
 
         extend += pl_To_Next
         extend += d['identity']
-        
+
     else :
         r = consensus.getRouter(on)
         ip = map(int,r['ip'].split("."))
-        port = int(r['orport'])    
-            
+        port = int(r['orport'])
+
         extend = struct.pack("B" * len(ip), *ip)
         extend += struct.pack("H", port)
 
@@ -203,7 +214,7 @@ def buildExtendPayload(on):
         extend += r['identity']
 
     return (x, extend)
-    #return extend #, x #, ip, port    
+    #return extend #, x #, ip, port
 
 
 def buildRelayCell(torhop, relayCmd, streamId, payload):
@@ -244,4 +255,4 @@ def decodeRelayCell(cell):
     celldata['pl'] = cell[11:celldata['length']+11]
     return celldata
 
-                                                            
+
