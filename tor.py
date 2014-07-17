@@ -431,7 +431,6 @@ relayData = recvCell(ssl_sock)
 data = circ_to_rend.recievedStreamData(relayData['pl'])
 print data
 assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
-print data
 
 
 hops_in_circ =  ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
@@ -503,10 +502,10 @@ create_circuits(circ_to_ip, hops_in_circ)
 
 print "Circ to introduction point created successfully"
 # PK_ID = descriptor_id_list[0]
-rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
+rp_id, rp_ip, rp_or_port, rp_onion_key = calc_rendezvous_point_data(rendezvous_point)
 
 
-circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
+circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
 #circ_to_ip.createStream(1, "ghowen.me", 80)
 #connected = recvCell(ssl_sock)
 #print connected
