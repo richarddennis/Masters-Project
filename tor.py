@@ -69,8 +69,25 @@ from rendFuncs import *
    #     40 -- RELAY_COMMAND_INTRODUCE_ACK
 
 
-#print ownAddress
-#sys.exit(0)
+
+   # The error codes are:
+   #   0 -- NONE            (No reason given.)
+   #   1 -- PROTOCOL        (Tor protocol violation.)
+   #   2 -- INTERNAL        (Internal error.)
+   #   3 -- REQUESTED       (A client sent a TRUNCATE command.)
+   #   4 -- HIBERNATING     (Not currently operating; trying to save bandwidth.)
+   #   5 -- RESOURCELIMIT   (Out of memory, sockets, or circuit IDs.)
+   #   6 -- CONNECTFAILED   (Unable to reach relay.)
+   #   7 -- OR_IDENTITY     (Connected to relay, but its OR identity was not
+   #                         as expected.)
+   #   8 -- OR_CONN_CLOSED  (The OR connection that was carrying this circuit
+   #                         died.)
+   #   9 -- FINISHED        (The circuit has expired for being dirty or old.)
+   #  10 -- TIMEOUT         (Circuit construction took too long)
+   #  11 -- DESTROYED       (The circuit was destroyed w/o client TRUNCATE)
+   #  12 -- NOSUCHSERVICE   (Request for unknown hidden service)
+
+
 
 # 512 - COMMAND_LEN - PAYLOAD_LEN = 512 - 1 - 509 = 2
 CIRCID_LEN = 2
@@ -86,7 +103,9 @@ def recvCell(sock, waitFor = 0):
                         ln = struct.unpack(">H", sock.recv(2))[0]
                 pl = sock.recv(ln)
 
+                print "got pkt circ ",circid, " cmd", cmd
                 if cmd == waitFor or waitFor == 0:
+                        print "Return pkt circ ",circid, " cmd", cmd
                         return { 'circId': circid, 'cmd': cmd, 'len': ln, 'pl': pl}
 
 # builds the version cell's payload
@@ -160,10 +179,13 @@ def NetInfoToSend(tm, our_or_ip_version, our_or_addr_len, our_op_ip, version_the
 
 
 
+TOR_CIRCID_COUNTER = 1
 class TorCircuit():
-    def __init__(self, sock, circid):
+    def __init__(self, sock):
+        global TOR_CIRCID_COUNTER
         self.hops = []
-        self.circId = circid
+        self.circId = TOR_CIRCID_COUNTER
+        TOR_CIRCID_COUNTER+=1
         self.socket = sock
         self.tempX = 0
         self.packetSendCount = 0
@@ -178,17 +200,17 @@ class TorCircuit():
     def encrypt_last_only(self, relayCell):
         for hop in self.hops[-1:]:
             relayCell = hop.fwdCipher.encrypt(relayCell)
-        return relayCell    
+        return relayCell
 
 #parse relaycell as str
     def decrypt(self, relayCell):
-        for i, hop in enumerate(self.hops):
-            print "decrypt: hop #{} {}".format(i, hop)            
-            # print "decrypt :", str(hop)
-        for hop in self.hops:    
+        i = 0
+        for hop in self.hops:
             relayCell = hop.decrypt(relayCell)
             if relayCell[1]==0 and relayCell[2]==0:
+                print "decrypt: hop #{} of {} {}".format(i, len(self.hops), hop)
                 return relayCell
+            i+=1
         return relayCell
 
 
@@ -200,7 +222,8 @@ class TorCircuit():
 
 
     def toFirst(self, on):
-        (self.tempX, create) = remoteKeyX(firstHop)
+        # ERROR FOUND HERE - USING GLOBAL!! FIXED - GARETH
+        (self.tempX, create) = remoteKeyX(on)
         createcell = buildCell(self.circId, 1, create)
         self.socket.send(createcell)
 
@@ -238,12 +261,12 @@ class TorCircuit():
     def create_stream_hsdir(self,strId, host):
         payload = host + "\x00" + struct.pack(">L", 0)
         relay = buildRelayCell(self.hops[-1], 13, strId, payload)  #13 -- RELAY_BEGIN_DIR
-        self.send(relay)        
+        self.send(relay)
 
     def streamRecieved(self, packet):
         connected = self.decrypt(packet)
         print connected.encode('hex')
-        relayDecoded = decodeRelayCell(connected)        
+        relayDecoded = decodeRelayCell(connected)
         assert relayDecoded['relayCmd'] == 4 # Otherwise the relay_connect have not been recieved (Usually down to a time out)
 
     def streamData(self,strId, data):
@@ -253,40 +276,61 @@ class TorCircuit():
 
     def recievedStreamData(self, packet):
         data = self.decrypt(packet)
-        relayDecoded = decodeRelayCell(data)        
+        relayDecoded = decodeRelayCell(data)
         return relayDecoded
 
     def rendezvous_point_payload(self):
         rendezvous_cookie = create_rendezvous_cookie()
         if self.cookie != []:
             self.cookie.pop
-        self.cookie.append(rendezvous_cookie)  #keeps it for use later on   
+        self.cookie.append(rendezvous_cookie)  #keeps it for use later on
         payload = struct.pack('!20s', rendezvous_cookie)
         return payload
 
-    def establish_rendezvous_point(self, strId, payload): 
-        relay = buildRelayCell(self.hops[-1], 33, strId, payload)   
+    def establish_rendezvous_point(self, strId, payload):
+        relay = buildRelayCell(self.hops[-1], 33, strId, payload)
         self.send(relay)
 
-    def a_op_to_induction_point(self, strId, PK_ID, rp_address, rp_or_port, rp_id, rp_ok, rc):
+    def a_op_to_induction_point(self, strId, pk,rp_address, rp_or_port, rp_id, rp_ok, rc):
         # PK_ID  Identifier for Bob's PK      [20 octets]
-        cleartext = struct.pack('!20s', PK_ID)
+        PK_ID = hash_item(pk)
+        assert len(PK_ID) == 20
+        PK_ID = struct.pack ('!20s',PK_ID)
+
         data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
-        # data = self.encrypt(data)
-        payload = cleartext + data
-        payload = self.encrypt(payload)
+        # data = hybridEncrypt(data, PK_ID)
+
+        # print "data type",type(data)
+        # print "PK_ID type", type(public_key)
+        # print "public_key",public_key
+
+        # # keyDER = b64decode(public_key)
+        # seq = asn1.DerSequence()
+        # seq.decode(public_key)
+        # keyPub = RSA.construct( (seq[0], seq[1]) )
+
+        keyPub = RSA.importKey(pk)
+        payload = hybridEncrypt(keyPub, data)
+
+
+        payload = PK_ID + data
+
+
+        # payload = self.encrypt(payload) #-- SHOULD BE HYBRID ENCRYPT OF DATA - Gareth
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
 
-def create_circuits(circ_name, first_hop, hops_in_circ):
-    circ_name.toFirst(first_hop)
+def create_circuits(circ_name, hops):
+    circ_name.toFirst(hops[0])
     created = recvCell(ssl_sock)
+    assert created['circId'] == circ_name.circId and created['cmd'] == 2
     circ_name.handleCreated(created)
-    count=0 
-    for hop in hops_in_circ[1:len(hops_in_circ)]:
+    count=0
+    for hop in hops[1:]:
         print "hop :", hop
         circ_name.extend(0, hop)
         extended = recvCell(ssl_sock)
+        assert extended['circId'] == circ_name.circId and extended['cmd'] == 3
         circ_name.extendedRecieved(extended['pl'])
         count = count + 1
         print "success, hop ",count
@@ -310,7 +354,7 @@ print "Packet to send is : ", verCell
 ssl_sock.send(verCell)
 
 srv_netinfocell = recvCell(ssl_sock, 8)
-print "netinfoCell recieved " 
+print "netinfoCell recieved "
 srv_decodeNetInfo = decodeNetInfo(srv_netinfocell['pl']) # proccess the payload from the netinfo cell
 
 srv_NetInfoToSend = NetInfoToSend(**srv_decodeNetInfo)
@@ -319,33 +363,31 @@ netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
 ssl_sock.send(netinfoCell)
 print "netinfo sent"
 
-hops_in_circ = ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
-firstHop = hops_in_circ[0]
-hops_to_extend = hops_in_circ[0:]
+hops_in_circ =  ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
 
-circ_to_rend = TorCircuit(ssl_sock, 1)
-create_circuits(circ_to_rend, firstHop, hops_to_extend                                                                              )
-        
+circ_to_rend = TorCircuit(ssl_sock)
+create_circuits(circ_to_rend,hops_in_circ)
+
 #Testing to ensure that a stream can be sent through the tor network and out to a server
-circ_to_rend.createStream(1, "ghowen.me", 80)
-connected = recvCell(ssl_sock)
-print connected
-circ_to_rend.streamRecieved(connected['pl'])
-print "Stream successfully established"
-data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-
-circ_to_rend.streamData(1, data)
-
-#Retrieves the data recieved from the request, looking for a 200 back
-stream_data = []
-while True:
-    relayData = recvCell(ssl_sock)
-    data = circ_to_rend.recievedStreamData(relayData['pl'])
-    if (data['relayCmd']) == 3:
-        break
-    print data['pl']
-    stream_data.append(data['pl'])
-print stream_data
+#circ_to_rend.createStream(1, "ghowen.me", 80)
+#connected = recvCell(ssl_sock)
+#print connected
+#circ_to_rend.streamRecieved(connected['pl'])
+#print "Stream successfully established"
+#data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
+#
+#circ_to_rend.streamData(1, data)
+#
+##Retrieves the data recieved from the request, looking for a 200 back
+#stream_data = []
+#while True:
+#    relayData = recvCell(ssl_sock)
+#    data = circ_to_rend.recievedStreamData(relayData['pl'])
+#    if (data['relayCmd']) == 3:
+#        break
+#    print data['pl']
+#    stream_data.append(data['pl'])
+#print stream_data
 
 
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
@@ -356,12 +398,11 @@ onion_Add = "kpvz7ki2v5agwt35"          #"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2u
 responsible_HSDir_list = []
 descriptor_id_list = []
 
-
 for i in range(0, 2):
     descriptor_id = get_descriptor_Id(onion_Add, i)
     descriptor_id_list.append(descriptor_id)
     responsible_HSDir = find_responsible_HSDir(descriptor_id)
-    responsible_HSDir_list.append(responsible_HSDir) # Saves all responsible HSDir information in a list to use later                   
+    responsible_HSDir_list.append(responsible_HSDir) # Saves all responsible HSDir information in a list to use later
 
 print "responsible_HSDir_list", responsible_HSDir_list
 
@@ -369,11 +410,11 @@ ip_addresses, dirport, port, nickname, identity = extract_HSDir_data(responsible
 
 web_addresses = connect_to_web_lookup(ip_addresses, dirport, descriptor_id_list)
 
-print web_addresses
+print "web addr", web_addresses
 
 
 n = 1 # Change this value to select a different router to connect to
-i = 0 # change between 0 - 1   releated to descriptor list                          
+i = 0 # change between 0 - 1   releated to descriptor list
 service_descriptor_data = "GET /tor/rendezvous2/"+ descriptor_id_list[i] +" HTTP/1.1\r\nHost: "+web_addresses[n]+"\r\n\r\n"
 
 #"GET HTTP/1.1\r\nHost:"+web_addresses[0]+"\r\n\r\n" #need to change so it loops through all web addresses if first fails etc
@@ -388,31 +429,30 @@ rendezvous_cookie = circ_to_rend.rendezvous_point_payload()
 circ_to_rend.establish_rendezvous_point(1, rendezvous_cookie)
 relayData = recvCell(ssl_sock)
 data = circ_to_rend.recievedStreamData(relayData['pl'])
+print data
 assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
 print data
-                                                                                                                                                                         
 
-hops_in_circ = ["orion", "WorldWithPrivacyNY1", "TheVillage"]
-hops_in_circ.append(nickname[n]) #first IP  
+
+hops_in_circ =  ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
+hops_in_circ.append(nickname[n]) #first IP
 print "hops_in_circ : "  ,hops_in_circ #circuit we will be using
 print  "No of hops in circ : ", len(hops_in_circ)
-firstHop = hops_in_circ[0]
-hops_to_extend = hops_in_circ[0:]
 
 #Creates new circuit to the HSDir server
-circ_to_HSDir = TorCircuit(ssl_sock, 2)
-create_circuits(circ_to_HSDir, firstHop, hops_in_circ) 
+circ_to_HSDir = TorCircuit(ssl_sock)
+create_circuits(circ_to_HSDir, hops_in_circ)
 
-print web_addresses[0]
+print web_addresses[n]
 
 #creates a stream to the HSDir server to send data down
-circ_to_HSDir.create_stream_hsdir(2, web_addresses[0])
+circ_to_HSDir.create_stream_hsdir(2, web_addresses[n])
 connected = recvCell(ssl_sock)
 
 
 # If the  address cannot be resolved, or a connection can't be established, the  exit node replies with a RELAY_END cell
-# Had an issue with the creation stream, beccause it is a directory a RELAY_BEGIN_DIR cell needed to be sent instead     
-print connected 
+# Had an issue with the creation stream, beccause it is a directory a RELAY_BEGIN_DIR cell needed to be sent instead
+print connected
 print circ_to_HSDir.streamRecieved(connected['pl'])
 
 print "Stream successfully established to HSDir"
@@ -426,6 +466,7 @@ text_file = open(file_to_save, "w") # creates a file to write the data recieved 
 
 while True:
     relayData = recvCell(ssl_sock)
+    assert relayData['circId'] == circ_to_HSDir.circId
     data = circ_to_HSDir.recievedStreamData(relayData['pl'])
     if (data['relayCmd']) == 3: #End of stream data
         break
@@ -445,33 +486,39 @@ message_decrypted_file.write(message_decrypted)
 message_decrypted_file.close()
 
 #Retrieves data from the decrypted version of the document recieved
-introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted = extract_data_from_file(file_decrypted_to_save)
+introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted, service_key_encrypted = extract_data_from_file(file_decrypted_to_save)
 
 print introduction_point_decrypted[0] #One of the chosen Introduction points
 
 introduction_point_nick = consensus.get_data_by_ip(ip_addresses[0])['nick'] #Retrieves the nickname based on ip address
 
-hops_in_circ = ["orion", "WorldWithPrivacyNY1", "TheVillage"]
+hops_in_circ = ["orion", "TorLand1"]
 hops_in_circ.append(introduction_point_nick) #first IP  added onto the end of the circ
 print "hops_in_circ : "  ,hops_in_circ #circuit we will be using
 print  "No of hops in circ : ", len(hops_in_circ)
-firstHop = hops_in_circ[0]
-hops_to_extend_ip = hops_in_circ[0:]
 
 #Create new circuit to send data to the chosen I.P
-circ_to_ip= TorCircuit(ssl_sock, 3)
-create_circuits(circ_to_ip, firstHop, hops_to_extend_ip) 
+circ_to_ip= TorCircuit(ssl_sock)
+create_circuits(circ_to_ip, hops_in_circ)
 
 print "Circ to introduction point created successfully"
 # PK_ID = descriptor_id_list[0]
 rp_id, rp_ip, rp_or_port, onion_key = calc_rendezvous_point_data(rendezvous_point)
 
-hash_sk = hash_item(service_key_decrypted[0])
 
-circ_to_ip.a_op_to_induction_point(3, hash_sk, rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
- 
+circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, onion_key, rendezvous_cookie)
+#circ_to_ip.createStream(1, "ghowen.me", 80)
+#connected = recvCell(ssl_sock)
+#print connected
+#circ_to_ip.streamRecieved(connected['pl'])
+#print "Stream successfully established"
+#data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
+#
+#circ_to_ip.streamData(1, data)
+
 while True :
     data = recvCell(ssl_sock)
+    assert circ_to_ip.circId == data['circId']
     print data
     print circ_to_ip.recievedStreamData(data['pl'])
 
@@ -526,7 +573,7 @@ while True :
 
 
 
-# print "No. of elements in HSDir_list", len(responsible_HSDir_list) #Currently 2 
+# print "No. of elements in HSDir_list", len(responsible_HSDir_list) #Currently 2
 # print "type of responsible_HSDir_list", type(responsible_HSDir_list) #list
 
 
@@ -623,7 +670,7 @@ while True :
 # ssl_sock.send(verCell)
 
 # srv_netinfocell = recvCell(ssl_sock, 8)
-# print "netinfoCell recieved ",srv_netinfocell 
+# print "netinfoCell recieved ",srv_netinfocell
 # srv_decodeNetInfo = decodeNetInfo(srv_netinfocell['pl']) # proccess the payload from the netinfo cell
 
 # srv_NetInfoToSend = NetInfoToSend(**srv_decodeNetInfo)
@@ -642,7 +689,7 @@ while True :
 
 # #print "Df", Df.encode('hex')
 # #srv_createdCell = srv_createdCell['pl']
-# t1 = decodeCreatedCell(srv_createdCell['pl'], x)    
+# t1 = decodeCreatedCell(srv_createdCell['pl'], x)
 
 # send = extend("TheVillage")
 # packetSendCount += 1
@@ -657,7 +704,7 @@ while True :
 # for k, v in srv_RelayedCell.iteritems():
 #     print k
 # # circId
-# # cmd 
+# # cmd
 # # pl
 # # len
 # print "payload", srv_RelayedCell['pl'].encode('hex')
@@ -667,4 +714,4 @@ while True :
 # print "extended decrypted ", extended.encode('hex')
 # #print type(extended)
 # hops.append(t2)
-                                                                                                                                    
+
