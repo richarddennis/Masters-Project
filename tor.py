@@ -279,12 +279,11 @@ class TorCircuit():
         relayDecoded = decodeRelayCell(data)
         return relayDecoded
 
-    def rendezvous_point_payload(self):
-        rendezvous_cookie = create_rendezvous_cookie()
+    def rendezvous_point_payload(self, rendezvous_cookie):
         if self.cookie != []:
             self.cookie.pop
         self.cookie.append(rendezvous_cookie)  #keeps it for use later on
-        payload = struct.pack('!20s', rendezvous_cookie)
+        payload = struct.pack ('!20s',rendezvous_cookie)
         return payload
 
     def establish_rendezvous_point(self, strId, payload):
@@ -295,7 +294,7 @@ class TorCircuit():
         # PK_ID  Identifier for Bob's PK      [20 octets]
         PK_ID = hash_item(pk)
         assert len(PK_ID) == 20
-        PK_ID = struct.pack ('!20s',PK_ID)
+
 
         data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
         # data = hybridEncrypt(data, PK_ID)
@@ -424,9 +423,10 @@ rendezvous_point = hops_in_circ[(len(hops_in_circ)-1)]
 print "hops_in_circ : "  ,hops_in_circ #circuit we will be using
 print  "No of hops in circ : ", len(hops_in_circ)
 print "rendezvous_point", rendezvous_point
-rendezvous_cookie = circ_to_rend.rendezvous_point_payload()
+rendezvous_cookie = create_rendezvous_cookie()
+rendezvous_cookie_payload = circ_to_rend.rendezvous_point_payload(rendezvous_cookie)
 
-circ_to_rend.establish_rendezvous_point(1, rendezvous_cookie)
+circ_to_rend.establish_rendezvous_point(1, rendezvous_cookie_payload)
 relayData = recvCell(ssl_sock)
 data = circ_to_rend.recievedStreamData(relayData['pl'])
 print data
@@ -479,7 +479,7 @@ rend_service_descriptor, RSA_pub_key, secret_id_part, message_decrypted,  signat
 print "message_decrypted\n\n", message_decrypted
 
 #saves  decrypted to a text file
-file_decrypted_to_save = descriptor_id_list[1]+"_decrypted.txt"
+file_decrypted_to_save = descriptor_id_list[0]+"_decrypted.txt"
 message_decrypted_file = open(file_decrypted_to_save, "w")
 message_decrypted_file.write(message_decrypted)
 message_decrypted_file.close()
@@ -501,19 +501,11 @@ circ_to_ip= TorCircuit(ssl_sock)
 create_circuits(circ_to_ip, hops_in_circ)
 
 print "Circ to introduction point created successfully"
-# PK_ID = descriptor_id_list[0]
+
 rp_id, rp_ip, rp_or_port, rp_onion_key = calc_rendezvous_point_data(rendezvous_point)
 
 
 circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
-#circ_to_ip.createStream(1, "ghowen.me", 80)
-#connected = recvCell(ssl_sock)
-#print connected
-#circ_to_ip.streamRecieved(connected['pl'])
-#print "Stream successfully established"
-#data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-#
-#circ_to_ip.streamData(1, data)
 
 while True :
     data = recvCell(ssl_sock)
