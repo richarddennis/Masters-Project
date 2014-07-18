@@ -153,10 +153,10 @@ def a_op_to_induction_point_v2(pk, rp_address, rp_or_port, rp_id, rp_ok, rc):
   print len(data)
 
   assert len(data) == 177+len(rp_ok) #Check the packing have been done correct, currently is not
-
+  
   keyPub = RSA.importKey(pk)
   data = hybridEncrypt(keyPub, data)
-  
+
   return data
 
 
@@ -359,5 +359,13 @@ def extract_data_from_file(decrypted_file):
   
   for i in introduction_point:
     introduction_point_decrypted.append(base64.b64decode(i))
+
+  print "no. of onion_key_decrypted", len(onion_key_decrypted)
+  print "no. of service_key_decrypted", len(service_key_decrypted)
+  print "no. of introduction_point_decrypted", len(introduction_point_decrypted)
+  print "ip_addresses", ip_addresses
+  print "onion_port", onion_port
+  print "no. of service keys", (service_key)
+
 
   return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted, service_key
