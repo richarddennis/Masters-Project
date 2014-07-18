@@ -163,6 +163,9 @@ def NetInfoToSend(tm, our_or_ip_version, our_or_addr_len, our_op_ip, version_the
     #         Number of addresses    [1 byte]
     # CellNetInfopkt += struct.pack("B", num_their_ips)
     #         Their OR's addresses    [variable]
+    print "peerAddress",peerAddress
+    print "peerAddress type", type(peerAddress)
+
     CellNetInfopkt += struct.pack(">B", 4)
     CellNetInfopkt += struct.pack(">B", 4)
     CellNetInfopkt += struct.pack("B" * len(peerAddress), *peerAddress)
@@ -296,7 +299,7 @@ class TorCircuit():
         assert len(PK_ID) == 20
 
 
-        data = a_op_to_induction_point_v2(rp_address, rp_or_port, rp_id, rp_ok, rc)
+        data = a_op_to_induction_point_v2( pk, rp_address, rp_or_port, rp_id, rp_ok, rc)
         # data = hybridEncrypt(data, PK_ID)
 
         # print "data type",type(data)
@@ -307,10 +310,6 @@ class TorCircuit():
         # seq = asn1.DerSequence()
         # seq.decode(public_key)
         # keyPub = RSA.construct( (seq[0], seq[1]) )
-
-        keyPub = RSA.importKey(pk)
-        payload = hybridEncrypt(keyPub, data)
-
 
         payload = PK_ID + data
 
@@ -362,7 +361,7 @@ netinfoCell = buildCell(0, 8, srv_NetInfoToSend)
 ssl_sock.send(netinfoCell)
 print "netinfo sent"
 
-hops_in_circ =  ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
+hops_in_circ =  ["orion", "TheVillage"]
 
 circ_to_rend = TorCircuit(ssl_sock)
 create_circuits(circ_to_rend,hops_in_circ)
@@ -392,7 +391,7 @@ create_circuits(circ_to_rend,hops_in_circ)
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
 
 print "Retriving hidden service descriptor"
-onion_Add = "kpvz7ki2v5agwt35"          #"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
+onion_Add = "3g2upl4pq6kufc4m"          #"kpvz7ki2v5agwt35"#Hidden Wiki   #"3g2upl4pq6kufc4m"#duck duck go     #"idnxcnkne4qt76tg" #homepage of the Tor project
 
 responsible_HSDir_list = []
 descriptor_id_list = []
@@ -433,7 +432,7 @@ print data
 assert (data['relayCmd']) == 39 #Make sure only a RELAY_COMMAND_RENDEZVOUS2EZVOUS_ESTABLISHED is recieved
 
 
-hops_in_circ =  ["orion", "TorLand1", "WorldWithPrivacyNY1", "TheVillage"]
+hops_in_circ =  ["orion", "TorLand1", "TheVillage"] #"WorldWithPrivacyNY1"
 hops_in_circ.append(nickname[n]) #first IP
 print "hops_in_circ : "  ,hops_in_circ #circuit we will be using
 print  "No of hops in circ : ", len(hops_in_circ)
@@ -487,8 +486,11 @@ message_decrypted_file.close()
 #Retrieves data from the decrypted version of the document recieved
 introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted, service_key_encrypted = extract_data_from_file(file_decrypted_to_save)
 
+
+
 print introduction_point_decrypted[0] #One of the chosen Introduction points
 
+# Put a loop in here, if un named try another
 introduction_point_nick = consensus.get_data_by_ip(ip_addresses[0])['nick'] #Retrieves the nickname based on ip address
 
 hops_in_circ = ["orion", "TorLand1"]
