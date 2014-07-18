@@ -311,6 +311,9 @@ class TorCircuit():
         # seq.decode(public_key)
         # keyPub = RSA.construct( (seq[0], seq[1]) )
 
+
+  
+        
         payload = PK_ID + data
 
 
@@ -511,9 +514,28 @@ circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_por
 
 while True :
     data = recvCell(ssl_sock)
-    assert circ_to_ip.circId == data['circId']
+    # assert circ_to_ip.circId == data['circId']
     print data
-    print circ_to_ip.recievedStreamData(data['pl'])
+    if circ_to_rend.circId == data['circId']:
+        print "Rend point"
+        data = circ_to_rend.recievedStreamData(data['pl'])
+        print data
+        # # circ_to_rend
+    else:
+        print circ_to_ip.recievedStreamData(data['pl'])
+    
+
+## Tidying up at end, remove the downloaded docs, frees up mmory space etc - needed ?
+# try:
+#         os.remove(file_to_save) 
+# except OSError, e:  ## if failed, report it back to the user ##
+#         print ("Error: %s - %s." % (e.filename,e.strerror))
+
+# try:
+#         os.remove(file_decrypted_to_save)
+# except OSError, e:  
+#         print ("Error: %s - %s." % (e.filename,e.strerror))
+
 
 
 
