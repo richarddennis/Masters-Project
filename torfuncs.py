@@ -29,6 +29,30 @@ HASH_LEN=20
 DH_G = 2
 DH_P = 179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007L
 
+error_codes ={
+
+    0: "NONE",
+    1: "PROTOCOL",
+    2: "INTERNAL",       
+    3: "REQUESTED", 
+    4: "HIBERNATING",
+    5: "RESOURCELIMIT",
+    6: "CONNECTFAILED",   
+    7: "OR_IDENTITY",   
+    8: "OR_CONN_CLOSED", 
+    9: "FINISHED",     
+    10: "TIMEOUT",       
+    11: "DESTROYED",     
+    12: "NOSUCHSERVICE" 
+}
+
+
+def error_type_to_message(err):
+    for (k,v) in error_codes.iteritems():
+        if k == err:
+            return v
+    raise IndexError("no error known")
+
 # adds padding to make payload 509
 def padding(payload):
     payload += "\x00" * (509 - len(payload))
