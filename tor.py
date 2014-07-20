@@ -19,54 +19,52 @@ from Crypto.Hash import SHA
 from torfuncs import *
 from rendFuncs import *
 
-#         0 -- PADDING     (Padding)
-#         1 -- CREATE      (Create a circuit)
-#         2 -- CREATED     (Acknowledge create)
-#         3 -- RELAY       (End-to-end data)
-#         4 -- DESTROY     (Stop using a circuit)
-#         5 -- CREATE_FAST (Create a circuit, no PK)
-#         6 -- CREATED_FAST (Circuit created, no PK)
-#         8 -- NETINFO     (Time and address info)
-#         9 -- RELAY_EARLY (End-to-end data; limited)
-#         10 -- CREATE2    (Extended CREATE cell)
-#         11 -- CREATED2   (Extended CREATED cell)
-#
-#    Variable-length command values are:
-#         7 -- VERSIONS    (Negotiate proto version)
-#         128 -- VPADDING  (Variable-length padding)
-#         129 -- CERTS     (Certificates)
-#         130 -- AUTH_CHALLENGE (Challenge value)
-#         131 -- AUTHENTICATE (Client authentication)
-#         132 -- AUTHORIZE (Client authorization)    (Not yet used)
+   #      0 -- PADDING     (Padding)
+   #      1 -- CREATE      (Create a circuit)
+   #      2 -- CREATED     (Acknowledge create)
+   #      3 -- RELAY       (End-to-end data)
+   #      4 -- DESTROY     (Stop using a circuit)
+   #      5 -- CREATE_FAST (Create a circuit, no PK)
+   #      6 -- CREATED_FAST (Circuit created, no PK)
+   #      8 -- NETINFO     (Time and address info)
+   #      9 -- RELAY_EARLY (End-to-end data; limited)
+   #      10 -- CREATE2    (Extended CREATE cell)
+   #      11 -- CREATED2   (Extended CREATED cell)
+
+   # Variable-length command values are:
+   #      7 -- VERSIONS    (Negotiate proto version)
+   #      128 -- VPADDING  (Variable-length padding)
+   #      129 -- CERTS     (Certificates)
+   #      130 -- AUTH_CHALLENGE (Challenge value)
+   #      131 -- AUTHENTICATE (Client authentication)
+   #      132 -- AUTHORIZE (Client authorization)    (Not yet used)
 
 
 # relay
-#          1 -- RELAY_BEGIN     [forward]
-#          2 -- RELAY_DATA      [forward or backward]
-#          3 -- RELAY_END       [forward or backward]
-#          4 -- RELAY_CONNECTED [backward]
-#          5 -- RELAY_SENDME    [forward or backward] [sometimes control]
-#          6 -- RELAY_EXTEND    [forward]             [control]
-#          7 -- RELAY_EXTENDED  [backward]            [control]
-#          8 -- RELAY_TRUNCATE  [forward]             [control]
-#          9 -- RELAY_TRUNCATED [backward]            [control]
-#         10 -- RELAY_DROP      [forward or backward] [control]
-#         11 -- RELAY_RESOLVE   [forward]
-#         12 -- RELAY_RESOLVED  [backward]
-#         13 -- RELAY_BEGIN_DIR [forward]
-#         14 -- RELAY_EXTEND2   [forward]             [control]
-#         15 -- RELAY_EXTENDED2 [backward]            [control]
-
-   # Relay cell types
-   #     32 -- RELAY_COMMAND_ESTABLISH_INTRO
-   #     33 -- RELAY_COMMAND_ESTABLISH_RENDEZVOUS
-   #     34 -- RELAY_COMMAND_INTRODUCE1
-   #     35 -- RELAY_COMMAND_INTRODUCE2
-   #     36 -- RELAY_COMMAND_RENDEZVOUS1
-   #     37 -- RELAY_COMMAND_RENDEZVOUS2
-   #     38 -- RELAY_COMMAND_INTRO_ESTABLISHED
-   #     39 -- RELAY_COMMAND_RENDEZVOUS_ESTABLISHED
-   #     40 -- RELAY_COMMAND_INTRODUCE_ACK
+        #  1 -- RELAY_BEGIN     [forward]
+        #  2 -- RELAY_DATA      [forward or backward]
+        #  3 -- RELAY_END       [forward or backward]
+        #  4 -- RELAY_CONNECTED [backward]
+        #  5 -- RELAY_SENDME    [forward or backward] [sometimes control]
+        #  6 -- RELAY_EXTEND    [forward]             [control]
+        #  7 -- RELAY_EXTENDED  [backward]            [control]
+        #  8 -- RELAY_TRUNCATE  [forward]             [control]
+        #  9 -- RELAY_TRUNCATED [backward]            [control]
+        # 10 -- RELAY_DROP      [forward or backward] [control]
+        # 11 -- RELAY_RESOLVE   [forward]
+        # 12 -- RELAY_RESOLVED  [backward]
+        # 13 -- RELAY_BEGIN_DIR [forward]
+        # 14 -- RELAY_EXTEND2   [forward]             [control]
+        # 15 -- RELAY_EXTENDED2 [backward]            [control]
+        # 32 -- RELAY_COMMAND_ESTABLISH_INTRO
+        # 33 -- RELAY_COMMAND_ESTABLISH_RENDEZVOUS
+        # 34 -- RELAY_COMMAND_INTRODUCE1
+        # 35 -- RELAY_COMMAND_INTRODUCE2
+        # 36 -- RELAY_COMMAND_RENDEZVOUS1
+        # 37 -- RELAY_COMMAND_RENDEZVOUS2
+        # 38 -- RELAY_COMMAND_INTRO_ESTABLISHED
+        # 39 -- RELAY_COMMAND_RENDEZVOUS_ESTABLISHED
+        # 40 -- RELAY_COMMAND_INTRODUCE_ACK
 
 
 
@@ -302,12 +300,20 @@ class TorCircuit():
         
         payload = PK_ID + data
 
-        # payload = self.encrypt(payload) #-- SHOULD BE HYBRID ENCRYPT OF DATA - Gareth
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
         # self.hops.append(self.tempX)
 
         # return self.tempX
+        return x
+
+    def a_op_to_induction_point_v3_spec(self, strId, pk,rp_address, rp_or_port, rp_id, rp_ok, rc):
+        PK_ID = hash_item(pk)
+        assert len(PK_ID) == 20
+        x, data = a_op_to_induction_point_v2( pk, rp_address, rp_or_port, rp_id, rp_ok, rc)      
+        payload = PK_ID + data
+        cell = buildRelayCell(self.hops[-1], 34, strId, payload)
+        self.send(cell)
         return x
 
     def handle_hs(self, pl, x):
@@ -368,25 +374,25 @@ circ_to_rend = TorCircuit(ssl_sock)
 create_circuits(circ_to_rend,hops_in_circ)
 
 #Testing to ensure that a stream can be sent through the tor network and out to a server
-#circ_to_rend.createStream(1, "ghowen.me", 80)
-#connected = recvCell(ssl_sock)
-#print connected
-#circ_to_rend.streamRecieved(connected['pl'])
-#print "Stream successfully established"
-#data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
-#
-#circ_to_rend.streamData(1, data)
-#
-##Retrieves the data recieved from the request, looking for a 200 back
-#stream_data = []
-#while True:
-#    relayData = recvCell(ssl_sock)
-#    data = circ_to_rend.recievedStreamData(relayData['pl'])
-#    if (data['relayCmd']) == 3:
-#        break
-#    print data['pl']
-#    stream_data.append(data['pl'])
-#print stream_data
+circ_to_rend.createStream(1, "ghowen.me", 80)
+connected = recvCell(ssl_sock)
+print connected
+circ_to_rend.streamRecieved(connected['pl'])
+print "Stream successfully established"
+data = "GET /ip HTTP/1.1\r\nHost: ghowen.me\r\n\r\n"
+
+circ_to_rend.streamData(1, data)
+
+#Retrieves the data recieved from the request, looking for a 200 back
+stream_data = []
+while True:
+   relayData = recvCell(ssl_sock)
+   data = circ_to_rend.recievedStreamData(relayData['pl'])
+   if (data['relayCmd']) == 3:
+       break
+   print data['pl']
+   stream_data.append(data['pl'])
+print stream_data
 
 
 # idnxcnkne4qt76tg.onion It is the homepage of the Tor project
@@ -507,7 +513,6 @@ print "Circ to introduction point created successfully"
 
 rp_id, rp_ip, rp_or_port, rp_onion_key = calc_rendezvous_point_data(rendezvous_point)
 
-
 redv_x = circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
 
 print "Connecting to the ip"
@@ -523,9 +528,8 @@ while True :
             print data
             print "relayCmd:",data['relayCmd']
             redv_payload = data['pl']
-            print "Rendv point data payload",redv_payload.encode('hex')
+            # print     "Rendv point data payload",redv_payload.encode('hex')
             break
-        # # circ_to_rend
     elif circ_to_ip.circId == data['circId']:
         data = circ_to_ip.recievedStreamData(data['pl'])
         print data
@@ -533,8 +537,7 @@ while True :
             print "RELAY_COMMAND_INTRODUCE_ACK"
     else: 
         print "Unkown packet"
-        print "data of unknown :", data
-
+        print "data of unknown packet : ", data
 
 print "Out of loop"
 decoded_rendv2 = circ_to_rend.handle_hs (redv_payload, redv_x) 
@@ -543,11 +546,24 @@ decoded_rendv2 = circ_to_rend.handle_hs (redv_payload, redv_x)
 print "Creating stream to hs"
 circ_to_rend.create_stream_hs(1, rp_or_port)
 data = recvCell(ssl_sock)
-if (circ_to_rend.recievedStreamData(data['pl']))['relayCmd'] == 4:
+recieved_stream = circ_to_rend.recievedStreamData(data['pl'])
+if recieved_stream['relayCmd'] == 4: #RELAY_CONNECTED
+    print  recieved_stream
     print "Stream created successfully"
+else : 
+    print "error creating stream"
+    print "relayCmd : ", recieved_stream['relayCmd']  
+    print recieved_stream 
 
-## Tidying up at end, remove the downloaded docs, frees up mmory space etc - needed ?
-print "Tdying up before quiting, removing any created files"
+
+
+
+
+
+
+
+
+## Tidying up at end, remove the downloaded docs, frees up memory space etc - needed ?
 try:
         os.remove(file_to_save)
         print "deleted file :", file_to_save
@@ -560,23 +576,6 @@ try:
 
 except OSError, e:  
         print ("Error: %s - %s." % (e.filename,e.strerror))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
