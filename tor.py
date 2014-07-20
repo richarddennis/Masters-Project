@@ -543,21 +543,40 @@ decoded_rendv2 = circ_to_rend.handle_hs (redv_payload, redv_x)
 print "Creating stream to hs"
 circ_to_rend.create_stream_hs(1, rp_or_port)
 data = recvCell(ssl_sock)
-print data
-print circ_to_rend.recievedStreamData(data['pl'])
-
-
+if (circ_to_rend.recievedStreamData(data['pl']))['relayCmd'] == 4:
+    print "Stream created successfully"
 
 ## Tidying up at end, remove the downloaded docs, frees up mmory space etc - needed ?
-# try:
-#         os.remove(file_to_save) 
-# except OSError, e:  ## if failed, report it back to the user ##
-#         print ("Error: %s - %s." % (e.filename,e.strerror))
+print "Tdying up before quiting, removing any created files"
+try:
+        os.remove(file_to_save)
+        print "deleted file :", file_to_save
 
-# try:
-#         os.remove(file_decrypted_to_save)
-# except OSError, e:  
-#         print ("Error: %s - %s." % (e.filename,e.strerror))
+except OSError, e:  ## if failed, report it back to the user ##
+        print ("Error: %s - %s." % (e.filename,e.strerror))
+try:
+        os.remove(file_decrypted_to_save)
+        print "deleted file :", file_decrypted_to_save
+
+except OSError, e:  
+        print ("Error: %s - %s." % (e.filename,e.strerror))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
