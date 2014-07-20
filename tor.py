@@ -299,7 +299,7 @@ class TorCircuit():
         assert len(PK_ID) == 20
 
 
-        data = a_op_to_induction_point_v2( pk, rp_address, rp_or_port, rp_id, rp_ok, rc)
+        x, data = a_op_to_induction_point_v2( pk, rp_address, rp_or_port, rp_id, rp_ok, rc)
         # data = hybridEncrypt(data, PK_ID)
 
         # print "data type",type(data)
@@ -310,16 +310,18 @@ class TorCircuit():
         # seq = asn1.DerSequence()
         # seq.decode(public_key)
         # keyPub = RSA.construct( (seq[0], seq[1]) )
-
-
-  
         
         payload = PK_ID + data
-
 
         # payload = self.encrypt(payload) #-- SHOULD BE HYBRID ENCRYPT OF DATA - Gareth
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
+        return x
+
+    def create_stream_hs(self,strId, port):
+        payload = "" + ":" + str(port) + "\x00" + struct.pack(">L", 0)
+        # relay = buildRelayCell(self.hops[-1], 1, strId, payload)
+        # self.send(relay)
 
 def create_circuits(circ_name, hops):
     circ_name.toFirst(hops[0])
@@ -510,20 +512,43 @@ print "Circ to introduction point created successfully"
 rp_id, rp_ip, rp_or_port, rp_onion_key = calc_rendezvous_point_data(rendezvous_point)
 
 
-circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
+redv_x = circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
+print "redv_x", redv_x
 
+print "Connecting to the ip"
 while True :
     data = recvCell(ssl_sock)
     # assert circ_to_ip.circId == data['circId']
-    print data
+    # print "data recived", data
     if circ_to_rend.circId == data['circId']:
-        print "Rend point"
         data = circ_to_rend.recievedStreamData(data['pl'])
-        print data
+        if data['relayCmd'] == 37 : 
+            print "RELAY_COMMAND_RENDEZVOUS2"
+            print "Rend point"
+            print data
+            print "relayCmd:",data['relayCmd']
+            redv_payload = data['pl']
+            print "Rendv point data payload",redv_payload.encode('hex')
+            break
         # # circ_to_rend
-    else:
-        print circ_to_ip.recievedStreamData(data['pl'])
-    
+    elif circ_to_ip.circId == data['circId']:
+        data = circ_to_ip.recievedStreamData(data['pl'])
+        print data
+        if data['relayCmd'] == 40 : 
+            print "RELAY_COMMAND_INTRODUCE_ACK"
+    else: 
+        print "Unkown packet"
+        print "data of unknown :", data
+
+
+print "Out of loop"
+decoded_rendv2 = decodeCreatedCell(redv_payload, redv_x) 
+
+#creates a stream to the hidden service to send data down
+# circ_to_rend.create_stream_hs(1,)
+# connected_hs = recvCell(ssl_sock)
+
+
 
 ## Tidying up at end, remove the downloaded docs, frees up mmory space etc - needed ?
 # try:
@@ -729,4 +754,3 @@ while True :
 # print "extended decrypted ", extended.encode('hex')
 # #print type(extended)
 # hops.append(t2)
-
