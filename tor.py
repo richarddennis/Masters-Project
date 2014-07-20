@@ -298,30 +298,26 @@ class TorCircuit():
         PK_ID = hash_item(pk)
         assert len(PK_ID) == 20
 
-
         x, data = a_op_to_induction_point_v2( pk, rp_address, rp_or_port, rp_id, rp_ok, rc)
-        # data = hybridEncrypt(data, PK_ID)
-
-        # print "data type",type(data)
-        # print "PK_ID type", type(public_key)
-        # print "public_key",public_key
-
-        # # keyDER = b64decode(public_key)
-        # seq = asn1.DerSequence()
-        # seq.decode(public_key)
-        # keyPub = RSA.construct( (seq[0], seq[1]) )
         
         payload = PK_ID + data
 
         # payload = self.encrypt(payload) #-- SHOULD BE HYBRID ENCRYPT OF DATA - Gareth
         cell = buildRelayCell(self.hops[-1], 34, strId, payload)
         self.send(cell)
+        # self.hops.append(self.tempX)
+
+        # return self.tempX
         return x
+
+    def handle_hs(self, pl, x):
+        t3 = decodeCreatedCell(redv_payload, x) 
+        self.hops.append(t3)   
 
     def create_stream_hs(self,strId, port):
         payload = "" + ":" + str(port) + "\x00" + struct.pack(">L", 0)
-        # relay = buildRelayCell(self.hops[-1], 1, strId, payload)
-        # self.send(relay)
+        relay = buildRelayCell(self.hops[-1], 1, strId, payload)
+        self.send(relay)
 
 def create_circuits(circ_name, hops):
     circ_name.toFirst(hops[0])
@@ -513,7 +509,6 @@ rp_id, rp_ip, rp_or_port, rp_onion_key = calc_rendezvous_point_data(rendezvous_p
 
 
 redv_x = circ_to_ip.a_op_to_induction_point(3, service_key_decrypted[0], rp_ip, rp_or_port, rp_id, rp_onion_key, rendezvous_cookie)
-print "redv_x", redv_x
 
 print "Connecting to the ip"
 while True :
@@ -542,11 +537,14 @@ while True :
 
 
 print "Out of loop"
-decoded_rendv2 = decodeCreatedCell(redv_payload, redv_x) 
+decoded_rendv2 = circ_to_rend.handle_hs (redv_payload, redv_x) 
 
 #creates a stream to the hidden service to send data down
-# circ_to_rend.create_stream_hs(1,)
-# connected_hs = recvCell(ssl_sock)
+print "Creating stream to hs"
+circ_to_rend.create_stream_hs(1, rp_or_port)
+data = recvCell(ssl_sock)
+print data
+print circ_to_rend.recievedStreamData(data['pl'])
 
 
 
