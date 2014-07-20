@@ -79,87 +79,6 @@ def calc_rendezvous_point_data(rendezvous_point):
   onion_key = consensus.getRouterOnionKey(router_descriptor)
   return rp_id, rp_ip, rp_or_port, onion_key
 
-
-
-def a_op_to_induction_point_v2(pk, rp_address, rp_or_port, rp_id, rp_ok, rc):
-#  629           VER    Version byte: set to 2.        [1 octets]
-#  630           IP     Rendezvous point's address    [4 octets]
-#  631           PORT   Rendezvous point's OR port    [2 octets]
-#  632           ID     Rendezvous point identity ID [20 octets]
-#  633           KLEN   Length of onion key           [2 octets]
-#  634           KEY    Rendezvous point onion key [KLEN octets]
-#  635           RC     Rendezvous cookie            [20 octets]
-#  636           g^x    Diffie-Hellman data, part 1 [128 octets]
-
-
-
-  # print "rp_address",rp_address
-  # print "type rp_address", type(rp_address)
-
-  rp_address_split = rp_address.split('.')
-  # print "rp_address_split type", type(rp_address_split)
-  # print "rp_address split", rp_address_split
-  rp_address_split = map(int, rp_address_split) #Changes from Str to int for all ip addresses
-
-  data = struct.pack (">B", 2)
-  print "DATA", data.encode('hex')
-  print "Len of data should be 1", len(data)
-
-  print rp_address_split
-  data += struct.pack("B" * len(rp_address_split), *rp_address_split)#* len(rp_address_split)
-  print "Len of data should be 5", len(data)
-
-  print rp_address_split
-  print "DATA", data.encode('hex')
-
-  data += struct.pack (">H", int(rp_or_port))
-  print "Len of data should be 7", len(data)
-
-  print rp_or_port
-  print "DATA", data.encode('hex')
-  # print len(rp_id)
-  # rp_id_decoded = base64.standard_b64decode(rp_id)
-  # print len(rp_id_decoded)
-
-  data += struct.pack (">20s", rp_id)
-  print "Len of data should be 27", len(data)
-
-
-
-
-  data += struct.pack (">H", len(rp_ok))
-  print "Len of data should be 29", len(data)
-
-  print rp_ok
-  print type(rp_ok)
-  print len(rp_ok)
-
-  data += struct.pack("c" * len(rp_ok), *rp_ok)
-  print len(rp_ok)
-  # data += (struct.pack ('!i', len(rp_ok)) + rp_ok)
-
-
-  print "Len of data should be 29 + above", len(data)
-  data += struct.pack ('!20s', rc)
-  print len(data)
-  x = numunpack(os.urandom(DH_SEC_LEN))
-  X = pow(DH_G,x,DH_P)
-  X = numpack(X,DH_LEN)
-
-  print "X IS TYP ", type(X)
-  print "Len of X :",len(X)
-  data += struct.pack ('128c', *X)
-  print data.encode('hex')
-  print len(data)
-
-  assert len(data) == 177+len(rp_ok) #Check the packing have been done correct, currently is not
-  
-  keyPub = RSA.importKey(pk)
-  data = hybridEncrypt(keyPub, data)
-
-  return x, data
-
-
 def getIndex(str,arr):
      for i in range(len(arr)):
              if str in arr[i]:
@@ -342,6 +261,9 @@ def extract_data_from_file(decrypted_file):
   elif no_of_ip == 3:
     onion_key = ([i+j+k for i,j,k in zip(ok[::3], ok[1::3], ok[2::3])])
     service_key = ([i+j+k for i,j,k in zip(sk[::3], sk[1::3], sk[2::3])])
+  elif no_of_ip == 4:
+    onion_key = ([i+j+k+l for i,j,k,l in zip(ok[::4], ok[1::4], ok[2::4],  ok[3::4])])
+    service_key = ([i+j+k+l for i,j,k,l in zip(sk[::4], sk[1::4], sk[2::4], sk[3::4])])
 
   #Decrypts the data
   for i in onion_key:
@@ -364,3 +286,97 @@ def extract_data_from_file(decrypted_file):
 
 
   return  introduction_point_decrypted, ip_addresses, onion_port, onion_key_decrypted, service_key_decrypted, service_key
+
+def a_op_to_induction_point_v2(pk, rp_address, rp_or_port, rp_id, rp_ok, rc):
+#  629           VER    Version byte: set to 2.        [1 octets]
+#  630           IP     Rendezvous point's address    [4 octets]
+#  631           PORT   Rendezvous point's OR port    [2 octets]
+#  632           ID     Rendezvous point identity ID [20 octets]
+#  633           KLEN   Length of onion key           [2 octets]
+#  634           KEY    Rendezvous point onion key [KLEN octets]
+#  635           RC     Rendezvous cookie            [20 octets]
+#  636           g^x    Diffie-Hellman data, part 1 [128 octets]
+
+  # print "rp_address",rp_address
+  # print "type rp_address", type(rp_address)
+
+  rp_address_split = rp_address.split('.')
+  rp_address_split = map(int, rp_address_split) #Changes from Str to int for all ip addresses
+
+  data = struct.pack (">B", 2)
+  print rp_address_split
+  data += struct.pack("B" * len(rp_address_split), *rp_address_split)#* len(rp_address_split)
+  data += struct.pack (">H", int(rp_or_port))
+  print rp_or_port
+  # rp_id_decoded = base64.standard_b64decode(rp_id)
+
+  data += struct.pack (">20s", rp_id)
+  data += struct.pack (">H", len(rp_ok))
+  data += struct.pack("c" * len(rp_ok), *rp_ok)
+  # data += (struct.pack ('!i', len(rp_ok)) + rp_ok)
+
+  data += struct.pack ('!20s', rc)
+  x = numunpack(os.urandom(DH_SEC_LEN))
+  X = pow(DH_G,x,DH_P)
+  X = numpack(X,DH_LEN)
+
+  data += struct.pack ('128c', *X)
+
+  assert len(data) == 177+len(rp_ok) #Check the packing have been done correct, currently is not
+  
+  keyPub = RSA.importKey(pk)
+  data = hybridEncrypt(keyPub, data)
+
+  return x, data
+
+
+def a_op_to_induction_point_v3(pk, rp_address, rp_or_port, rp_id, rp_ok, rc):
+ # 638           VER    Version byte: set to 3.        [1 octet]
+ # 639           AUTHT  The auth type that is used     [1 octet]
+ # 640           If AUTHT != [00]:
+ # 641               AUTHL  Length of auth data           [2 octets]
+ # 642               AUTHD  Auth data                     [variable]
+ # 643           TS     A timestamp                   [4 octets]
+ # 644           IP     Rendezvous point's address    [4 octets]
+ # 645           PORT   Rendezvous point's OR port    [2 octets]
+ # 646           ID     Rendezvous point identity ID [20 octets]
+ # 647           KLEN   Length of onion key           [2 octets]
+ # 648           KEY    Rendezvous point onion key [KLEN octets]
+ # 649           RC     Rendezvous cookie            [20 octets]
+ # 650           g^x    Diffie-Hellman data, part 1 [128 octets]
+
+
+  # print "rp_address",rp_address
+  # print "type rp_address", type(rp_address)
+
+  rp_address_split = rp_address.split('.')
+  # print "rp_address_split type", type(rp_address_split)
+  # print "rp_address split", rp_address_split
+  rp_address_split = map(int, rp_address_split) #Changes from Str to int for all ip addresses
+
+  data = struct.pack (">B", 3)
+  data += struct.pack (">B", 00)
+  data += struct.pack (">I", time.time())
+  print rp_address_split
+  data += struct.pack("B" * len(rp_address_split), *rp_address_split)#* len(rp_address_split)
+
+  data += struct.pack (">H", int(rp_or_port))
+  # rp_id_decoded = base64.standard_b64decode(rp_id)
+
+  data += struct.pack (">20s", rp_id)
+  data += struct.pack (">H", len(rp_ok))
+  data += struct.pack("c" * len(rp_ok), *rp_ok)
+  # data += (struct.pack ('!i', len(rp_ok)) + rp_ok)
+
+  data += struct.pack ('!20s', rc)
+  x = numunpack(os.urandom(DH_SEC_LEN))
+  X = pow(DH_G,x,DH_P)
+  X = numpack(X,DH_LEN)
+
+  data += struct.pack ('128c', *X)
+  assert len(data) == 177+len(rp_ok) 
+  
+  keyPub = RSA.importKey(pk)
+  data = hybridEncrypt(keyPub, data)
+
+  return x, data
