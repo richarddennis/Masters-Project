@@ -157,12 +157,7 @@ def a_op_to_induction_point_v2(pk, rp_address, rp_or_port, rp_id, rp_ok, rc):
   keyPub = RSA.importKey(pk)
   data = hybridEncrypt(keyPub, data)
 
-  return data
-
-
-
-
-
+  return x, data
 
 
 def getIndex(str,arr):
