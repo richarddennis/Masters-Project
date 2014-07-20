@@ -552,7 +552,8 @@ if recieved_stream['relayCmd'] == 4: #RELAY_CONNECTED
     print "Stream created successfully"
 else : 
     print "error creating stream"
-    print "relayCmd : ", recieved_stream['relayCmd']  
+    error_value = recieved_stream['relayCmd']  
+    error_type_to_message(error_value)
     print recieved_stream 
 
 
