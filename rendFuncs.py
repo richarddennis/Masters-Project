@@ -125,9 +125,6 @@ def decode_recieved_document(file_to_open):
       no_descriptor()
     else:
       break
-            # do_something
-
-
 
   # Gets the lines dynamically, although the doc should be of a standard size this protects againt any differences
   rs_line = getIndex("rendezvous-service-descriptor", lines)
