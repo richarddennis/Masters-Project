@@ -8,6 +8,8 @@ import zlib
 flags = {}
 router = {}
 
+### Gareth Owen base code however some functions have been added etc ###
+
 def getDoc(doc):
     return urllib2.urlopen("http://86.59.21.38/tor/"+doc).read()
 
@@ -40,13 +42,9 @@ def fetchConsensus():
             total += 1
         if q[0] == 'v':
             router[curRouter]['version'] = ' '.join(q[1:])
+    
+    # print(data) #testing
 
-# Fetch router description array given name
-def getRouter(nm):
-    for r in router.itervalues():
-        if r['nick'] == nm:
-            return r
-    return None
 
 def fetchConsensusTxt():
     global router,flags
@@ -71,7 +69,7 @@ def get_data_by_ip(ip):
     for r in router.itervalues():
         if r['ip'] == ip:
             return r
-    return None
+    return Nonenick
 # Fetch text router descriptor containing keys
 def getRouterDescriptor(identityhash):
     if router[identityhash.decode('hex')]:
@@ -87,3 +85,12 @@ def getRouterOnionKey(routerdesc):
         onionk += lns[okidx]
         okidx += 1
     return base64.b64decode(onionk)
+
+
+# Fetch router description array given name
+def getRouter(nm):
+    # print "get router"
+    for r in router.itervalues():
+        if r['nick'] == nm:
+            return r
+    return None
