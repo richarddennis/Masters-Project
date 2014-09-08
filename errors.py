@@ -1,4 +1,4 @@
-  from torfuncs import *
+from torfuncs import *
 import consensus
 
 error_codes ={
