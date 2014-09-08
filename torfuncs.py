@@ -1,11 +1,8 @@
-
 from StringIO import StringIO
-#import consensus
 import binascii
 from collections import namedtuple
 import pprint
 import os
-#from OpenSSL import crypto
 import time
 import ssl,socket,struct
 from binascii import hexlify
@@ -15,11 +12,12 @@ from Crypto.PublicKey import *
 import sys
 from Crypto.Util import Counter
 import consensus
+from consensus import *
+
 import re
 
-# cipher = AES CTR (ZERO IV START)
-# HASH = SHA1
-# RSA 1024bit, e=65537, OAEP
+
+### Pre set variables with values that do not change
 KEY_LEN=16
 DH_LEN=128
 DH_SEC_LEN=40
@@ -29,36 +27,23 @@ HASH_LEN=20
 DH_G = 2
 DH_P = 179769313486231590770839156793787453197860296048756011706444423684197180216158519368947833795864925541502180565485980503646440548199239100050792877003355816639229553136239076508735759914822574862575007425302077447712589550957937778424442426617334727629299387668709205606050270810842907692932019128194467627007L
 
-error_codes ={
-
-    0: "NONE",
-    1: "PROTOCOL",
-    2: "INTERNAL",       
-    3: "REQUESTED", 
-    4: "HIBERNATING",
-    5: "RESOURCELIMIT",
-    6: "CONNECTFAILED",   
-    7: "OR_IDENTITY",   
-    8: "OR_CONN_CLOSED", 
-    9: "FINISHED",     
-    10: "TIMEOUT",       
-    11: "DESTROYED",     
-    12: "NOSUCHSERVICE" 
-}
 
 
-def error_type_to_message(err):
-    for (k,v) in error_codes.iteritems():
-        if k == err:
-            return v
-    raise IndexError("no error known")
-
-# adds padding to make payload 509
+#Function to add padding to make payload 509, more effiecent that coding this every time
+# Input is the payload of the packet so far
+# output is the payload correctly padded to len 509
 def padding(payload):
     payload += "\x00" * (509 - len(payload))
+
+    ### Test##
+    # if len(payload) != 509:
+    #     errors.incorrect_padding()
     return payload
 
 # builds a cell
+#Function to create the cells, made into a function to reduce code repeation
+#Takes the command and payload, and if it is cmd 7 or 128 or greater it is a variable length packet and will be sent as it once correctly packed,however else it will be padded to 509 length
+#The cell correctly formatted will be returned read to be sent
 def buildCell(circid, command, payload):
         cell = struct.pack(">HB", circid, command)
         if command == 7 or command >= 128:
@@ -132,10 +117,11 @@ def hash_item(i):
     hash_value = hash_value.digest()
     return hash_value
 
+#Gareth Owens code, reused with his permission, saved on time and possible errors that could have been brought in by trying to develop it
 #according to tor spec, performs hybrid encrypt for create/etc
 def hybridEncrypt(rsa, m):
-    print "RSA type :", type(rsa) #intance
-    print "Message type: ", type(m)  #Str
+    # print "RSA type :", type(rsa) #intance
+    # print "Message type: ", type(m)  #Str
     cipher = PKCS1_OAEP.new(rsa)
     if len(m) < (PK_ENC_LEN - PK_PAD_LEN):
         return cipher.encrypt(m)
@@ -149,6 +135,7 @@ def hybridEncrypt(rsa, m):
         sympart = aes.encrypt(m2)
         return rsapart + sympart
 
+#Takes the onion name of a node, calculates its public and private keys to be used
 def remoteKeyX (on):
     r = consensus.getRouter(on)
     x = numunpack(os.urandom(DH_SEC_LEN))
@@ -156,22 +143,11 @@ def remoteKeyX (on):
     X = numpack(X,DH_LEN)
     router_descriptor = consensus.getRouterDescriptor(r['identityhash'])
     router_onion_key = consensus.getRouterOnionKey(router_descriptor)
-    # print "router_onion_key type", type (router_onion_key)
-    # print "router_onion_key len", len(router_onion_key)
-    # print "router_onion_key", router_onion_key.encode('hex')
     remoteKey = RSA.importKey(router_onion_key)
-    #remoteKey = RSA.importKey(router_onion_key)
-    # print "router_onion_key", router_onion_key
-    # print "router_onion_key type",type(router_onion_key)
-    # print "router_onion_key len",len(router_onion_key)
-
-    # print "remoteKey",remoteKey
-    # print "remoteKey type",type (remoteKey)
-
     payload = hybridEncrypt(remoteKey, X)
     return (x, payload)
 
-
+#Failed attempt of calulating the keys with out an onion nickname, this was developed for a node with just ip addresses, however the consensus was edited to search for the nickname thus rendering this un needed
 def remoteKeyX_with_no_on (on):
     x = numunpack(os.urandom(DH_SEC_LEN))
     X = pow(DH_G,x,DH_P)
@@ -205,10 +181,24 @@ def decodeCreatedCell(created, x):
 
 def buildExtendPayload(on):
     match = re.search(r'(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?', on)
+    # if on =="Goblin500":
+    #     print "Goblin500"
+    #     ip = [82,26,108,68]
+    #     port = 9001
+    #     extend = struct.pack("B" * len(ip), *ip)
+    #     extend += struct.pack("H", port)
+
+    #     x, pl_To_Next = remoteKeyX(on) 
+    #     extend += pl_To_Next
+    #     r = consensus.getRouter(on)
+
+    #     print r['identity'].encode('hex')
+    #     extend += r['identity']
+
     if match:
         ip, port,identity = on.split(":")
         print ip
-        print type(ip)
+        # print type(ip)
         d = consensus.get_data_by_ip(ip)
 
         ip = map(int,ip.split("."))
@@ -227,7 +217,6 @@ def buildExtendPayload(on):
         r = consensus.getRouter(on)
         ip = map(int,r['ip'].split("."))
         port = int(r['orport'])
-
         extend = struct.pack("B" * len(ip), *ip)
         extend += struct.pack("H", port)
 
@@ -280,3 +269,13 @@ def decodeRelayCell(cell):
     return celldata
 
 
+#This function is a simple function that removes the .onion address from the end of the hidden service address if it has it
+def remove_of_onion(onion_Add):
+    if '.' in onion_Add:
+        return onion_Add.split('.')[0]
+    else:
+        return onion_Add
+
+def ip_port_for_on(on):
+    test = consensus.getRouter(on)
+    print test
